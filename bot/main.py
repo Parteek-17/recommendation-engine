@@ -10,10 +10,12 @@ For deployment you would use a webhook instead — see bot/README.md.
 
 from __future__ import annotations
 
+import threading
+
 from telegram import BotCommand, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
-from bot import handlers
+from bot import deps, handlers
 from common.config import ConfigError, settings
 from common.db import init_db
 from common.logging_utils import get_logger
@@ -36,6 +38,22 @@ async def _post_init(app: Application) -> None:
     # Fills the "/" menu in Telegram, so users see the commands without BotFather setup.
     await app.bot.set_my_commands([BotCommand(name, text) for name, text in COMMANDS])
     log.info("Bot @%s is running. Press Ctrl+C to stop.", app.bot.username)
+    # Load the rec engine + Claude client now, not on the first tester's tap (that took ~100 s).
+    threading.Thread(target=_warm_up, name="warm-up", daemon=True).start()
+
+
+def _warm_up() -> None:
+    try:
+        from bot import personas
+        from pipeline.offer_pipeline import warm_up
+
+        pooled = personas._pool(personas.PERSONAS[0].key)
+        warm_up(pooled[0] if pooled else None)
+        if pooled:
+            deps.build_user_context(pooled[0])
+        log.info("Warm-up done: rec engine and Claude client are loaded")
+    except Exception as exc:  # a cold start is only slower, never wrong
+        log.warning("Warm-up failed (%s); the first request will be slower", type(exc).__name__)
 
 
 def build_application(token: str) -> Application:

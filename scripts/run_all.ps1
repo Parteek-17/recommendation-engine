@@ -7,6 +7,7 @@
 #   Offers API  http://127.0.0.1:8001/docs   (uvicorn offers.api:app)
 #   Main API    http://127.0.0.1:8000/docs   (uvicorn api.main:app)
 #   Storefront  http://localhost:8501        (streamlit run ui/app.py)
+#   Control room http://localhost:8502       (streamlit run ui/control_room.py) - offer rules + results
 #   Telegram bot                             (python -m bot.main, only if TELEGRAM_BOT_TOKEN is set)
 #   Scheduler   offer round every 15 min     (python -m pipeline.scheduler)
 
@@ -53,6 +54,7 @@ foreach ($url in @("http://127.0.0.1:8001/health", "http://127.0.0.1:8000/health
 }
 
 Start-Window "Storefront :8501" "-m streamlit run ui/app.py --server.port 8501 --server.headless true"
+Start-Window "Control room :8502" "-m streamlit run ui/control_room.py --server.port 8502 --server.headless true"
 
 $BotState = "skipped (no TELEGRAM_BOT_TOKEN in .env)"
 if ($NoBot) { $BotState = "skipped (-NoBot)" }
@@ -69,6 +71,7 @@ Write-Host "================ What's running where ================" -ForegroundC
 Write-Host ("  Offers API    http://127.0.0.1:8001/docs   (needs X-API-Key)")
 Write-Host ("  Main API      http://127.0.0.1:8000/docs   (/health shows real vs stub modules)")
 Write-Host ("  Storefront    http://localhost:8501")
+Write-Host ("  Control room  http://localhost:8502   (offer rules, results, demo testers)")
 Write-Host ("  Telegram bot  $BotState")
 Write-Host ("  Scheduler     $SchedState")
 Write-Host "======================================================" -ForegroundColor Cyan

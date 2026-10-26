@@ -27,7 +27,7 @@ from llm.client import LLMError, get_client, mock_text, text_of
 log = get_logger("llm.offer_chooser")
 
 NO_DISCOUNT = "no_discount"
-MAX_TOKENS = 200
+MAX_TOKENS = 400
 TIMEOUT_S = 10.0
 MAX_RETRIES = 1
 MAX_REASON_CHARS = 160
@@ -44,6 +44,7 @@ How to decide:
 (high budget band) shopper who orders often would probably buy anyway, so a smaller offer \
 or "no_discount" (a friendly reminder without a coupon) saves money.
 - When two offers are similar, choose the cheaper one for the store (lower est_cost_inr).
+- In the reason, call the person "the shopper" (or "they"). Never guess gender, name or other personal details.
 
 Reply with ONLY a JSON object, no other text:
 {"offer_id": "<one id from the list, or no_discount>", "reason": "<max 20 words, plain English, for the marketing team>"}"""

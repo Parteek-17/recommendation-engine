@@ -58,6 +58,7 @@ start main_api -m uvicorn api.main:app --port 8000
 wait_for http://127.0.0.1:8001/health
 wait_for http://127.0.0.1:8000/health
 start storefront -m streamlit run ui/app.py --server.port 8501 --server.headless true
+start control_room -m streamlit run ui/control_room.py --server.port 8502 --server.headless true
 
 BOT_STATE="skipped (no TELEGRAM_BOT_TOKEN in .env)"
 if [ "$NO_BOT" = 1 ]; then BOT_STATE="skipped (--no-bot)"
@@ -75,6 +76,7 @@ cat <<EOF
   Offers API    http://127.0.0.1:8001/docs   (needs X-API-Key)
   Main API      http://127.0.0.1:8000/docs   (/health shows real vs stub modules)
   Storefront    http://localhost:8501
+  Control room  http://localhost:8502   (offer rules, results, demo testers)
   Telegram bot  $BOT_STATE
   Scheduler     $SCHED_STATE
   Logs          logs/*.log

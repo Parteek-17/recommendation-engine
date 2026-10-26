@@ -71,7 +71,7 @@ PERSONAS: list[Persona] = [
             f"""SELECT o.user_id FROM orders o JOIN users u ON u.user_id = o.user_id
                 WHERE {_NOT_MINOR} AND EXISTS (SELECT 1 FROM events e WHERE e.user_id = o.user_id
                                                AND e.event_type = 'add_to_cart')
-                GROUP BY o.user_id ORDER BY COUNT(*) DESC, SUM(o.total_amount) DESC"""),
+                GROUP BY o.user_id HAVING COUNT(*) >= 4 ORDER BY AVG(o.total_amount) DESC"""),
 ]
 BY_KEY = {p.key: p for p in PERSONAS}
 
@@ -83,13 +83,31 @@ def _taken() -> set[str]:
     return {r["user_id"] for r in rows}
 
 
+def _holds_live_offer(user_id: str, now) -> bool:
+    """Already holding an unused, still-valid coupon? Then the no-stacking rule (rightly) blocks
+    a new one, and the tester would see no offer, so such users don't make good demo shoppers."""
+    with store.db() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM offer_sends s JOIN offers o ON o.offer_id = s.offer_id "
+            "WHERE s.user_id = ? AND s.status IN ('queued', 'sent', 'opened', 'clicked') "
+            "AND o.is_active = 1 AND o.expires_at >= ? LIMIT 1",
+            (user_id, now.isoformat(timespec="seconds"))).fetchone()
+    return row is not None
+
+
 def _fits(persona: Persona, user_id: str) -> bool:
     """Would the pipeline actually show this persona's behaviour for this user?"""
     from pipeline.offer_pipeline import likely_buyer  # lazy: the pipeline imports the bot package
     from common.logging_utils import now_local
 
+    now = now_local()
+    if _holds_live_offer(user_id, now):
+        return False
+    is_likely_buyer = likely_buyer(user_id, persona.trigger_type, now) is not None
     if persona.key == "premium":
-        return likely_buyer(user_id, persona.trigger_type, now_local()) is not None
+        return is_likely_buyer
+    if is_likely_buyer:
+        return False  # they'd get a reminder, not this persona's offer
     if persona.trigger_type == "festival":
         return True  # store-wide festival offers exist for everyone during the sale
     from offers.generator import generate_offers
@@ -101,9 +119,50 @@ def _fits(persona: Persona, user_id: str) -> bool:
         return False
 
 
+# Checking a user means building their offers (~2-5 s each on the full data), far too slow
+# for a button tap. So `prepare_pool()` checks users ONCE at start-up (scripts/preflight.py)
+# and stores fitting ones in persona_pool; a tap then just takes the first free user from it.
+POOL_SIZE = 8
+SCAN_LIMIT = {"premium": 250}  # premium regulars in the "high" budget band are rarer: look further
+
+_POOL_DDL = "CREATE TABLE IF NOT EXISTS persona_pool (persona TEXT, user_id TEXT, rank INTEGER)"
+
+
+def prepare_pool(size: int = POOL_SIZE) -> dict[str, int]:
+    """Find up to `size` fitting users per persona and save them. Returns {persona: users found}."""
+    found: dict[str, list[str]] = {}
+    with store.db() as conn:
+        candidates = {p.key: [r[0] for r in conn.execute(p.sql).fetchall()] for p in PERSONAS}
+    for p in PERSONAS:
+        fits = []
+        for user_id in candidates[p.key][: SCAN_LIMIT.get(p.key, size * 3)]:
+            if _fits(p, user_id):
+                fits.append(user_id)
+                if len(fits) >= size:
+                    break
+        found[p.key] = fits
+    with store.db() as conn:
+        conn.execute(_POOL_DDL)
+        conn.execute("DELETE FROM persona_pool")
+        conn.executemany("INSERT INTO persona_pool VALUES (?, ?, ?)",
+                         [(key, u, i) for key, users in found.items() for i, u in enumerate(users)])
+    return {key: len(users) for key, users in found.items()}
+
+
+def _pool(persona_key: str) -> list[str]:
+    with store.db() as conn:
+        conn.execute(_POOL_DDL)
+        return [r[0] for r in conn.execute("SELECT user_id FROM persona_pool WHERE persona = ? ORDER BY rank",
+                                           (persona_key,))]
+
+
 def pick_user(persona: Persona) -> str | None:
-    """A free synthetic user whose data fits `persona` (or, failing that, any free adult user)."""
+    """A free synthetic user whose data fits `persona`: from the prepared pool if possible,
+    else a (slower) live search, else any free adult user."""
     taken = _taken()
+    pooled = [u for u in _pool(persona.key) if u not in taken]
+    if pooled:
+        return pooled[0]
     with store.db() as conn:
         candidates = [r[0] for r in conn.execute(persona.sql).fetchall() if r[0] not in taken]
         anyone = [r[0] for r in conn.execute("SELECT user_id FROM users WHERE is_minor = 0 ORDER BY user_id")
@@ -134,6 +193,8 @@ def assign(persona_key: str, chat_id: int | str) -> str | None:
 _STATUS_TEXT = {
     "sent": "✅ Offer sent (above)",
     "reminder_sent": "✅ Reminder sent, no discount (above)",
+    "dry_run": "🧪 Dry run: this offer WOULD be sent",
+    "reminder_dry_run": "🧪 Dry run: a no-discount reminder WOULD be sent",
     "holdout": "⏸ You're in the control group: no offer, so we can measure what offers add",
     "blocked": "⛔ Not allowed to message you right now",
     "no_offer": "🤷 No offer fits you right now",
@@ -176,3 +237,18 @@ def profile_summary(user_id: str) -> str:
     lines.append(f"🧾 {orders['n']} past orders · ₹{orders['total']:,.0f} spent")
     lines += [f"• {verbs[r['event_type']]}: {r['title']}" for r in recent]
     return "\n".join(lines)
+
+
+def main() -> None:
+    """python -m bot.personas  ->  (re)build the pool of demo shoppers."""
+    import time
+
+    start = time.time()
+    counts = prepare_pool()
+    for p in PERSONAS:
+        print(f"  {p.button:<24} {counts[p.key]} fitting shopper(s)")
+    print(f"Persona pool ready in {time.time() - start:.0f} s.")
+
+
+if __name__ == "__main__":
+    main()

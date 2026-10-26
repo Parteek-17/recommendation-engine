@@ -99,6 +99,20 @@ def check_data_and_models(fix: bool) -> bool:
     return True
 
 
+def ensure_persona_pool(fix: bool) -> None:
+    """Demo shoppers for classmates (bot/personas.py). Missing pool = slow first taps, not an error."""
+    from bot import personas
+
+    if all(personas._pool(p.key) for p in personas.PERSONAS):
+        print("  [ok] demo shopper pool ready")
+        return
+    if not fix:
+        print("  [--] demo shopper pool empty: run python -m bot.personas (taps will be slow until then)")
+        return
+    print("  ...  finding demo shoppers for the Telegram personas (one-off, ~1-3 min)")
+    subprocess.check_call([sys.executable, "-m", "bot.personas"], cwd=ROOT)
+
+
 def report_optional_keys() -> None:
     from common.config import settings
 
@@ -121,6 +135,7 @@ def main() -> int:
     print("Pre-flight checks")
     ok = ensure_env(fix) and ensure_offers_key(fix) and check_data_and_models(fix)
     if ok:
+        ensure_persona_pool(fix)
         report_optional_keys()
     return 0 if ok else 1
 
