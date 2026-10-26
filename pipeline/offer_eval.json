@@ -1,0 +1,201 @@
+{
+  "now": "2026-09-30T19:00:00",
+  "triggers_found": {
+    "cart_abandon": 552,
+    "post_purchase": 588,
+    "repurchase_due": 532,
+    "win_back": 1029
+  },
+  "evaluated": 1500,
+  "strategies": {
+    "engine": {
+      "triggers": 783,
+      "sent": 783,
+      "redeem_per_1000": 8.61,
+      "incremental_per_1000": 6.89,
+      "cost_per_1000_inr": 757.0,
+      "cost_per_incremental_inr": 110.0
+    },
+    "random": {
+      "triggers": 783,
+      "sent": 783,
+      "redeem_per_1000": 3.76,
+      "incremental_per_1000": 3.01,
+      "cost_per_1000_inr": 375.0,
+      "cost_per_incremental_inr": 124.0
+    },
+    "max_discount": {
+      "triggers": 783,
+      "sent": 783,
+      "redeem_per_1000": 3.27,
+      "incremental_per_1000": 2.62,
+      "cost_per_1000_inr": 581.0,
+      "cost_per_incremental_inr": 222.0
+    },
+    "generic": {
+      "triggers": 783,
+      "sent": 488,
+      "redeem_per_1000": 3.89,
+      "incremental_per_1000": 3.12,
+      "cost_per_1000_inr": 345.0,
+      "cost_per_incremental_inr": 111.0
+    }
+  },
+  "by_trigger": {
+    "cart_abandon|engine": {
+      "triggers": 151,
+      "sent": 151,
+      "redeem_per_1000": 16.96,
+      "incremental_per_1000": 13.57,
+      "cost_per_1000_inr": 2346.0,
+      "cost_per_incremental_inr": 173.0
+    },
+    "cart_abandon|generic": {
+      "triggers": 151,
+      "sent": 151,
+      "redeem_per_1000": 1.05,
+      "incremental_per_1000": 0.84,
+      "cost_per_1000_inr": 754.0,
+      "cost_per_incremental_inr": 896.0
+    },
+    "cart_abandon|max_discount": {
+      "triggers": 151,
+      "sent": 151,
+      "redeem_per_1000": 1.33,
+      "incremental_per_1000": 1.06,
+      "cost_per_1000_inr": 1095.0,
+      "cost_per_incremental_inr": 1032.0
+    },
+    "cart_abandon|random": {
+      "triggers": 151,
+      "sent": 151,
+      "redeem_per_1000": 3.22,
+      "incremental_per_1000": 2.58,
+      "cost_per_1000_inr": 981.0,
+      "cost_per_incremental_inr": 381.0
+    },
+    "post_purchase|engine": {
+      "triggers": 164,
+      "sent": 164,
+      "redeem_per_1000": 20.47,
+      "incremental_per_1000": 16.37,
+      "cost_per_1000_inr": 1388.0,
+      "cost_per_incremental_inr": 85.0
+    },
+    "post_purchase|generic": {
+      "triggers": 164,
+      "sent": 164,
+      "redeem_per_1000": 15.28,
+      "incremental_per_1000": 12.22,
+      "cost_per_1000_inr": 884.0,
+      "cost_per_incremental_inr": 72.0
+    },
+    "post_purchase|max_discount": {
+      "triggers": 164,
+      "sent": 164,
+      "redeem_per_1000": 13.97,
+      "incremental_per_1000": 11.18,
+      "cost_per_1000_inr": 1736.0,
+      "cost_per_incremental_inr": 155.0
+    },
+    "post_purchase|random": {
+      "triggers": 164,
+      "sent": 164,
+      "redeem_per_1000": 14.4,
+      "incremental_per_1000": 11.52,
+      "cost_per_1000_inr": 878.0,
+      "cost_per_incremental_inr": 76.0
+    },
+    "repurchase_due|engine": {
+      "triggers": 163,
+      "sent": 163,
+      "redeem_per_1000": 5.05,
+      "incremental_per_1000": 4.04,
+      "cost_per_1000_inr": 67.0,
+      "cost_per_incremental_inr": 17.0
+    },
+    "repurchase_due|generic": {
+      "triggers": 163,
+      "sent": 163,
+      "redeem_per_1000": 2.36,
+      "incremental_per_1000": 1.89,
+      "cost_per_1000_inr": 68.0,
+      "cost_per_incremental_inr": 36.0
+    },
+    "repurchase_due|max_discount": {
+      "triggers": 163,
+      "sent": 163,
+      "redeem_per_1000": 0.44,
+      "incremental_per_1000": 0.35,
+      "cost_per_1000_inr": 32.0,
+      "cost_per_incremental_inr": 92.0
+    },
+    "repurchase_due|random": {
+      "triggers": 163,
+      "sent": 163,
+      "redeem_per_1000": 0.61,
+      "incremental_per_1000": 0.49,
+      "cost_per_1000_inr": 7.0,
+      "cost_per_incremental_inr": 14.0
+    },
+    "win_back|engine": {
+      "triggers": 305,
+      "sent": 305,
+      "redeem_per_1000": 0.0,
+      "incremental_per_1000": 0.0,
+      "cost_per_1000_inr": 0.0,
+      "cost_per_incremental_inr": null
+    },
+    "win_back|generic": {
+      "triggers": 305,
+      "sent": 10,
+      "redeem_per_1000": 0.0,
+      "incremental_per_1000": 0.0,
+      "cost_per_1000_inr": 0.0,
+      "cost_per_incremental_inr": null
+    },
+    "win_back|max_discount": {
+      "triggers": 305,
+      "sent": 305,
+      "redeem_per_1000": 0.0,
+      "incremental_per_1000": 0.0,
+      "cost_per_1000_inr": 0.0,
+      "cost_per_incremental_inr": null
+    },
+    "win_back|random": {
+      "triggers": 305,
+      "sent": 305,
+      "redeem_per_1000": 0.0,
+      "incremental_per_1000": 0.0,
+      "cost_per_1000_inr": 0.0,
+      "cost_per_incremental_inr": null
+    }
+  },
+  "guardrails": {
+    "ranked_in": 12571,
+    "kept": 3194,
+    "blocked_reasons": {
+      "would stack with": 8291,
+      "offer already sent to this user": 647,
+      "discount": 298,
+      "high-value offer waiting for admin approval": 116,
+      "category with age-restricted products offered to a minor": 16,
+      "user already used this offer 1x (max 1)": 9
+    }
+  },
+  "funnel": {
+    "linked_users": 400,
+    "statuses": {
+      "unreachable": 2594,
+      "cooldown": 0,
+      "guardrail_blocked": 86,
+      "dry_run": 13,
+      "blocked": 8
+    },
+    "eligibility_blocks": {
+      "daily cap reached (1/1)": 6,
+      "weekly cap reached (3/3)": 1,
+      "weekly cap reached (1/1)": 1
+    }
+  }
+}

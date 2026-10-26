@@ -1,0 +1,18 @@
+# Our own synthetic data (data/raw/) through the SAME adapter + validator as real data.
+# Proves the generator output is valid Standard Format:
+#   python -m ingest.run --mapping ingest/mappings/synthetic.yaml --no-db
+source: synthetic
+licence: "Our own synthetic data (data_gen/), no restrictions"
+keep_ids: true            # ids are already U00001 / P00001 / ... -> copied as they are
+files:
+  users:        {path: data/raw/users.csv, format: csv, map: same}   # same = columns already have our names
+  categories:   {path: data/raw/categories.csv, format: csv, map: same}
+  products:     {path: data/raw/products.csv, format: csv, map: same}
+  sessions:     {path: data/raw/sessions.csv, format: csv, map: same}
+  events:       {path: data/raw/events.csv, format: csv, map: same}
+  orders:       {path: data/raw/orders.csv, format: csv, map: same}
+  order_items:  {path: data/raw/order_items.csv, format: csv, map: same}
+  reviews:      {path: data/raw/reviews.csv, format: csv, map: same}
+  offers:       {path: data/raw/offers.csv, format: csv, map: same}
+  offer_sends:  {path: data/raw/offer_sends.csv, format: csv, map: same}
+  user_consent: {path: data/raw/user_consent.csv, format: csv, map: same}

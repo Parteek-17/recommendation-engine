@@ -1,0 +1,22 @@
+# Myntra-style fashion catalog (Kaggle uploads). Catalog only: no shoppers -> data level L0 alone.
+# Column names differ between uploads: open the CSV, check the headers, change the RIGHT side.
+# Add --fill-missing to simulate shoppers on the real products (-> L4, with ground truth):
+#   python -m ingest.run --mapping ingest/mappings/myntra_fashion.yaml --fill-missing
+source: myntra_fashion
+licence: "Check the licence of the Kaggle upload you use (e.g. CC0 / CC BY 4.0) and cite it here"
+currency: INR
+simulate_users: 1000      # shoppers simulated by --fill-missing
+files:
+  products:
+    path: data/external/myntra/products.csv
+    format: csv
+    map:
+      product_id: p_id            # <- change to the real column name
+      title: name
+      brand: brand
+      price: {field: price, transform: money}
+      mrp: {field: mrp, transform: money}
+      category_path: {field: category, transform: split_path, sep: ">"}
+      description: {field: description, transform: strip_html}
+      avg_rating: avg_rating
+      rating_count: ratingCount

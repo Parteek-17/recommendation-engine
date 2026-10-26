@@ -1,0 +1,28 @@
+review_id,user_id,product_id,rating,review_text,review_date
+R000001,U00020,P00072,5,"Excellent product, totally worth the money!",2026-04-10T21:04:48
+R000002,U00042,P00013,3,"Average, expected a bit more.",2026-04-20T19:29:06
+R000003,U00043,P00024,4,Good quality for the price.,2026-05-15T12:48:05
+R000004,U00038,P00030,4,Good quality for the price.,2026-05-28T14:36:30
+R000005,U00042,P00033,5,"Excellent product, totally worth the money!",2026-05-27T23:08:56
+R000006,U00035,P00036,5,Loved it. Fast delivery too.,2026-06-19T08:43:05
+R000007,U00001,P00001,3,"Average, expected a bit more.",2026-06-13T20:12:02
+R000008,U00042,P00072,5,"Excellent product, totally worth the money!",2026-06-19T22:46:54
+R000009,U00013,P00025,4,"Nice product, packaging could be better.",2026-06-25T18:32:09
+R000010,U00030,P00096,5,Loved it. Fast delivery too.,2026-06-28T19:16:35
+R000011,U00049,P00020,4,Good quality for the price.,2026-06-17T21:17:39
+R000012,U00006,P00059,4,"Nice product, packaging could be better.",2026-06-23T20:14:14
+R000013,U00006,P00077,5,Loved it. Fast delivery too.,2026-07-01T08:44:49
+R000014,U00012,P00026,4,Good quality for the price.,2026-07-09T15:52:17
+R000015,U00003,P00021,5,"Excellent product, totally worth the money!",2026-07-07T08:00:50
+R000016,U00003,P00021,3,"Average, expected a bit more.",2026-07-21T16:22:14
+R000017,U00034,P00056,5,Loved it. Fast delivery too.,2026-07-23T22:56:04
+R000018,U00014,P00004,5,"Excellent product, totally worth the money!",2026-07-27T14:24:23
+R000019,U00041,P00028,3,"Average, expected a bit more.",2026-08-12T14:20:10
+R000020,U00020,P00096,4,Good quality for the price.,2026-08-09T21:19:39
+R000021,U00020,P00066,4,"Nice product, packaging could be better.",2026-08-15T12:51:07
+R000022,U00006,P00023,3,Okay okay. Does the job.,2026-08-20T01:01:08
+R000023,U00005,P00021,3,"Average, expected a bit more.",2026-08-27T11:04:49
+R000024,U00008,P00017,4,Good quality for the price.,2026-09-05T19:56:42
+R000025,U00003,P00032,5,"Excellent product, totally worth the money!",2026-09-18T21:13:24
+R000026,U00039,P00036,4,Good quality for the price.,2026-09-30T23:59:00
+R000027,U00012,P00012,4,Good quality for the price.,2026-09-30T23:59:00

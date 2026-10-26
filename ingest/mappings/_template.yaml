@@ -1,0 +1,67 @@
+# TEMPLATE - copy to ingest/mappings/<your_source>.yaml and fill in the RIGHT-hand side.
+# Left side  = Standard Format field (Data Contract in CLAUDE.md) - don't change these names.
+# Right side = column name in YOUR raw file. Delete lines for columns you don't have:
+#              missing fields get the defaults from docs/DATA_STANDARD.md ("If missing").
+#
+# A field can be:
+#   user_id: visitor                                   # just copy the column
+#   timestamp: {field: ts, transform: unix_ms}         # copy + convert
+#   event_type: {const: purchase}                      # same value for every row
+#
+# Transforms: unix_ms, unix_s, date (optional format: "%d-%m-%Y"), money, rating (scale: [1, 10]),
+#             event_map, list_to_path, split_path (sep: ">"), join_text, join_pipe, strip_html
+# Time fields (timestamp, review_date, signup_date, ...) are always converted to ISO local time.
+#
+# Run:  python -m ingest.run --mapping ingest/mappings/<your_source>.yaml [--sample 5000] [--fill-missing]
+
+source: my_store                 # output goes to data/processed/my_store/
+licence: "who owns this data and under which licence"
+currency: INR                    # INR | USD (+ usd_to_inr: 84) | other (+ rate: <rupees per unit>)
+session_gap_minutes: 30          # used when the data has no session ids
+files:
+  events:                        # REQUIRED for anything useful (level L1)
+    path: data/external/my_store/events.csv
+    format: csv                  # csv | jsonl | json
+    map:
+      user_id: customer_id
+      product_id: sku
+      timestamp: {field: event_time, transform: date}
+      event_type: {field: action, transform: event_map}
+      session_id: session        # optional
+      source: page               # optional (home/search/product_page/recommendation/telegram)
+      search_query: query        # optional
+    event_map: {view: view, click: click, add: add_to_cart, remove: remove_from_cart, wish: wishlist,
+                buy: purchase, order: purchase, search: search}
+  products:                      # optional (level L2)
+    path: data/external/my_store/products.csv
+    format: csv
+    map:
+      product_id: sku
+      title: name
+      brand: brand
+      price: {field: selling_price, transform: money}
+      mrp: {field: list_price, transform: money}
+      category_path: {field: category, transform: split_path, sep: ">"}
+      description: {field: description, transform: strip_html}
+      tags: {field: keywords, transform: join_pipe}
+      avg_rating: rating
+      rating_count: num_ratings
+      stock_qty: stock
+  users:                         # optional (level L3 together with orders/reviews/sessions)
+    path: data/external/my_store/customers.csv
+    format: csv
+    map:
+      user_id: customer_id
+      signup_date: {field: created_at, transform: date}
+      city: city
+      device: device
+      # never map names, emails, phone numbers or addresses - we don't need personal data
+  reviews:                       # optional; each rated review also becomes a purchase event
+    path: data/external/my_store/reviews.csv
+    format: csv
+    map:
+      user_id: customer_id
+      product_id: sku
+      rating: {field: stars, transform: rating, scale: [1, 5]}
+      review_text: {field: body, transform: strip_html}
+      review_date: {field: created_at, transform: date}

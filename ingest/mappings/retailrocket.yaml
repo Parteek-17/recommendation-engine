@@ -1,0 +1,18 @@
+# RetailRocket e-commerce dataset (public, Kaggle: "retailrocket/ecommerce-dataset").
+# Real funnel events (view / addtocart / transaction) but no catalog -> data level L1.
+# Download events.csv into data/external/retailrocket/ and run:
+#   python -m ingest.run --mapping ingest/mappings/retailrocket.yaml --sample 5000
+source: retailrocket
+licence: "CC BY-NC-SA 4.0 - RetailRocket recommender system dataset (Kaggle)"
+currency: INR            # the dataset has no prices
+session_gap_minutes: 30
+files:
+  events:
+    path: data/external/retailrocket/events.csv
+    format: csv
+    map:
+      user_id: visitorid
+      product_id: itemid
+      timestamp: {field: timestamp, transform: unix_ms}
+      event_type: {field: event, transform: event_map}
+    event_map: {view: view, addtocart: add_to_cart, transaction: purchase}

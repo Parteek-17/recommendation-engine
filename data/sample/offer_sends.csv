@@ -1,0 +1,13 @@
+send_id,user_id,offer_id,trigger_type,message,channel,status,sent_at,updated_at
+SN000001,U00002,OF0002,post_purchase,Hi! Use code ACCESS15 on your next order. Valid till 2027-03-31.,telegram,sent,2026-09-03T13:00:00,2026-09-03T15:00:00
+SN000002,U00003,OF0015,repurchase_due,Hi! Use code CHAI8 on your next order. Valid till 2027-03-31.,telegram,opened,2026-09-05T17:00:00,2026-09-05T19:00:00
+SN000003,U00004,OF0004,cart_abandon,Hi! Use code FREESHIP on your next order. Valid till 2027-03-31.,telegram,clicked,2026-09-07T13:00:00,2026-09-07T15:00:00
+SN000004,U00005,OF0016,post_purchase,Hi! Use code FITKIT on your next order. Valid till 2027-03-31.,telegram,redeemed,2026-09-09T10:00:00,2026-09-09T12:00:00
+SN000005,U00006,OF0012,festival,Hi! Use code FESTIVE30 on your next order. Valid till 2027-03-31.,telegram,opened,2026-09-11T11:00:00,2026-09-11T13:00:00
+SN000006,U00008,OF0011,repurchase_due,Hi! Use code GLOW12 on your next order. Valid till 2027-03-31.,telegram,sent,2026-09-13T12:00:00,2026-09-13T14:00:00
+SN000007,U00009,OF0002,post_purchase,Hi! Use code ACCESS15 on your next order. Valid till 2027-03-31.,telegram,blocked,,2026-09-15T16:00:00
+SN000008,U00012,OF0005,post_purchase,Hi! Use code PHONECOVER on your next order. Valid till 2027-03-31.,telegram,failed,2026-09-17T16:00:00,2026-09-17T18:00:00
+SN000009,U00017,OF0006,repurchase_due,Hi! Use code ATTAAGAIN on your next order. Valid till 2027-03-31.,telegram,clicked,2026-09-19T13:00:00,2026-09-19T15:00:00
+SN000010,U00019,OF0012,festival,Hi! Use code FESTIVE30 on your next order. Valid till 2027-03-31.,telegram,sent,2026-09-21T11:00:00,2026-09-21T13:00:00
+SN000011,U00021,OF0005,post_purchase,Hi! Use code PHONECOVER on your next order. Valid till 2027-03-31.,telegram,opened,2026-09-23T10:00:00,2026-09-23T12:00:00
+SN000012,U00022,OF0001,cart_abandon,Hi! Use code CART10 on your next order. Valid till 2027-03-31.,telegram,queued,,2026-09-25T12:00:00

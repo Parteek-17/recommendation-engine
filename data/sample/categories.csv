@@ -1,0 +1,25 @@
+category_id,name,parent_id
+C001,Electronics,
+C002,Fashion,
+C003,Home & Kitchen,
+C004,Beauty,
+C005,Grocery,
+C006,Sports,
+C007,Books,
+C008,Toys,
+C009,Mobiles,C001
+C010,Mobile Accessories,C001
+C011,Men's Clothing,C002
+C012,Footwear,C002
+C013,Kitchen Appliances,C003
+C014,Home Decor,C003
+C015,Skincare,C004
+C016,Haircare,C004
+C017,Staples,C005
+C018,Beverages,C005
+C019,Fitness Equipment,C006
+C020,Sportswear,C006
+C021,Fiction & Self-help,C007
+C022,Exam Prep,C007
+C023,Kids Toys,C008
+C024,Board Games,C008

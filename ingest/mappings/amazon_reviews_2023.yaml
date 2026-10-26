@@ -1,0 +1,40 @@
+# Amazon Reviews 2023 (McAuley Lab, UCSD - public). One category = two files:
+#   <Category>.jsonl       reviews  (user_id, parent_asin, rating, text, timestamp in ms)
+#   meta_<Category>.jsonl  catalog  (title, store, price in USD, categories, features, ...)
+# Each review = a purchase event. Users / orders / sessions are built automatically.
+#   python -m ingest.run --mapping ingest/mappings/amazon_reviews_2023.yaml --sample 5000
+source: amazon_reviews_2023
+licence: "Amazon Reviews 2023, McAuley Lab (Hou et al., 2024, arXiv:2403.03952) - research use"
+currency: USD
+usd_to_inr: 84            # update to the current rate
+files:
+  events:
+    path: data/external/amazon/Electronics.jsonl
+    format: jsonl
+    map:
+      user_id: user_id
+      product_id: parent_asin
+      timestamp: {field: timestamp, transform: unix_ms}
+      event_type: {const: purchase}          # each review = a purchase
+  reviews:
+    path: data/external/amazon/Electronics.jsonl
+    format: jsonl
+    map:
+      user_id: user_id
+      product_id: parent_asin
+      rating: rating
+      review_text: {field: text, transform: strip_html}
+      review_date: {field: timestamp, transform: unix_ms}
+  products:
+    path: data/external/amazon/meta_Electronics.jsonl
+    format: jsonl
+    map:
+      product_id: parent_asin
+      title: title
+      brand: store
+      price: {field: price, transform: money}
+      category_path: {field: categories, transform: list_to_path}
+      description: {field: description, transform: join_text}
+      tags: {field: features, transform: join_pipe}
+      avg_rating: average_rating
+      rating_count: rating_number

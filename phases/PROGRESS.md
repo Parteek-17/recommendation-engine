@@ -1,0 +1,15 @@
+# Progress Tracker
+
+Tick `[x]` when a phase meets its "Done when" checklist. Add a one-line note + date.
+
+- [x] Phase 0 — Foundation — 2026-10-23: common/, sample data (L4), init_db, check_setup, 27 tests passing. See common/README.md.
+- [x] Phase 1 — Data generator — 2026-10-23: data_gen/ (small ~95k events in ~15 s, full ~1M events in ~2-3 min, L4, planted patterns + ground truth, same seed = byte-identical CSVs) + ingest/ (RetailRocket L1, Amazon L3, Myntra L0/L4 with --fill-missing, synthetic L4) + 43 tests passing. See data_gen/README.md, ingest/README.md.
+- [x] Phase 2 — Recommendation engine — 2026-10-23: popularity/trending, item-CF (+ co-buy complements), ALS (implicit), TF-IDF content, candidate merge, LightGBM LambdaRank, re-ranking rules (post-purchase, budget, diversity, long tail, minors, gift mode), reasons for every item, offer ranking; backtest on 1M synthetic events: ranker 2.70× popularity NDCG@10, full pipeline 1.67× with substitute leak 22% → 2.5% (reco/results.md); 31 tests passing. Train ~10 min / evaluate ~37 min on full data. See reco/README.md.
+- [x] Phase 3 — Offer engine + Offers API — 2026-10-23: generator (6 triggers, margin floor + cap), Offers API on :8001 (401 without key, /docs), client (retry, [] when down), eligibility, guardrails + revalidate, approve CLI, uplift analysis; 106 tests passing. See offers/README.md.
+- [x] Phase 4 — LLM layer + guardrails — 2026-10-23: offer writer (placeholders filled from DB), chat agent (8 allowlisted tools, max 5 calls/turn), input/output guardrails, fallbacks; 107 tests passing; red team 69/69 defended, 0/14 false positives (mock mode). 2026-10-26: real Claude red team (`python -m llm.redteam`) also 69/69 defended, 0/14 false positives, all 14 normal questions answered with products. See llm/README.md.
+- [x] Phase 5 — Telegram bot — 2026-10-23: code + 48 mocked tests passing (linking, queue/rate limits, Forbidden/RetryAfter/network, buttons → events/offer_sends, stubs). 2026-10-26: live run with @Sutlejbot: deep link → linked + opted in, offer delivered, "Apply offer" → revalidated + redeemed, /stop → opted out. See bot/README.md.
+- [x] Phase 6 — Main API + Storefront UI — 2026-10-23: FastAPI (api/main.py, 25 endpoints, /docs) + Streamlit storefront (6 pages), user controls in data/user_prefs.json, 36 tests (tests/api, tests/ui). Works with stubs and auto-switches to real modules. See api/README.md, ui/DEMO.md.
+- [x] Phase 7 — Integration + evaluation — 2026-10-23: pipeline/ (6 triggers, 8-step offer pipeline with audit per step, scheduler every 15 min + nightly retrain, --dry-run), scripts/run_all.ps1/.sh + preflight.py, 21 integration tests, whole suite 419 passing, live HTTP check OK, docs/REPORT.md with real numbers. 2026-10-26: whole suite 421 passing; live run with real keys for U00010: quiet hours → blocked, then sent SN013225 (OF0044 EXAMPREP8, Claude wording, audit row per step), redeemed via button, /stop → blocked. Slow: one run ~1.5 min (Claude wording step ~54 s, first Offers API call timed out once then retried OK). See pipeline/README.md.
+
+## Notes
+

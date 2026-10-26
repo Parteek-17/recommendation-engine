@@ -1,0 +1,6 @@
+{"rating": 5.0, "title": "Great", "text": "Works <b>perfectly</b>!<br/>Fast charging.", "images": [], "asin": "B0A1", "parent_asin": "B0PHONE1", "user_id": "AGUSER1", "timestamp": 1756713600000, "helpful_vote": 3, "verified_purchase": true}
+{"rating": 4.0, "title": "Good", "text": "Nice cover", "images": [], "asin": "B0C1", "parent_asin": "B0COVER1", "user_id": "AGUSER1", "timestamp": 1756886400000, "helpful_vote": 0, "verified_purchase": true}
+{"rating": 2.0, "title": "Meh", "text": "Battery drains fast", "images": [], "asin": "B0A2", "parent_asin": "B0PHONE1", "user_id": "AGUSER2", "timestamp": 1757000000000, "helpful_vote": 1, "verified_purchase": false}
+{"rating": 5.0, "title": "Love", "text": "Best earbuds", "images": [], "asin": "B0E1", "parent_asin": "B0EARBUD", "user_id": "AGUSER2", "timestamp": 1757100000000, "helpful_vote": 0, "verified_purchase": true}
+{"rating": 3.0, "title": "ok", "text": "fine", "images": [], "asin": "B0X", "parent_asin": "B0NOMETA", "user_id": "AGUSER3", "timestamp": 1757200000000, "helpful_vote": 0, "verified_purchase": true}
+{"rating": null, "title": "no rating", "text": "?", "images": [], "asin": "B0A1", "parent_asin": "B0PHONE1", "user_id": "AGUSER3", "timestamp": 1757300000000, "helpful_vote": 0, "verified_purchase": true}

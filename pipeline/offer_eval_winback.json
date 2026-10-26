@@ -1,0 +1,90 @@
+{
+  "now": "2026-09-30T19:00:00",
+  "triggers_found": {
+    "win_back": 1029
+  },
+  "evaluated": 400,
+  "strategies": {
+    "engine": {
+      "triggers": 208,
+      "sent": 208,
+      "redeem_per_1000": 21.19,
+      "incremental_per_1000": 16.95,
+      "cost_per_1000_inr": 13170.0,
+      "cost_per_incremental_inr": 777.0
+    },
+    "random": {
+      "triggers": 208,
+      "sent": 208,
+      "redeem_per_1000": 21.19,
+      "incremental_per_1000": 16.95,
+      "cost_per_1000_inr": 13170.0,
+      "cost_per_incremental_inr": 777.0
+    },
+    "max_discount": {
+      "triggers": 208,
+      "sent": 208,
+      "redeem_per_1000": 21.19,
+      "incremental_per_1000": 16.95,
+      "cost_per_1000_inr": 13170.0,
+      "cost_per_incremental_inr": 777.0
+    },
+    "generic": {
+      "triggers": 208,
+      "sent": 9,
+      "redeem_per_1000": 1.01,
+      "incremental_per_1000": 0.81,
+      "cost_per_1000_inr": 10024.0,
+      "cost_per_incremental_inr": 12371.0
+    }
+  },
+  "by_trigger": {
+    "win_back|engine": {
+      "triggers": 208,
+      "sent": 208,
+      "redeem_per_1000": 21.19,
+      "incremental_per_1000": 16.95,
+      "cost_per_1000_inr": 13170.0,
+      "cost_per_incremental_inr": 777.0
+    },
+    "win_back|generic": {
+      "triggers": 208,
+      "sent": 9,
+      "redeem_per_1000": 1.01,
+      "incremental_per_1000": 0.81,
+      "cost_per_1000_inr": 10024.0,
+      "cost_per_incremental_inr": 12371.0
+    },
+    "win_back|max_discount": {
+      "triggers": 208,
+      "sent": 208,
+      "redeem_per_1000": 21.19,
+      "incremental_per_1000": 16.95,
+      "cost_per_1000_inr": 13170.0,
+      "cost_per_incremental_inr": 777.0
+    },
+    "win_back|random": {
+      "triggers": 208,
+      "sent": 208,
+      "redeem_per_1000": 21.19,
+      "incremental_per_1000": 16.95,
+      "cost_per_1000_inr": 13170.0,
+      "cost_per_incremental_inr": 777.0
+    }
+  },
+  "guardrails": {
+    "ranked_in": 1600,
+    "kept": 208,
+    "blocked_reasons": {
+      "would stack with": 1254,
+      "offer already sent to this user": 123,
+      "high-value offer waiting for admin approval": 14,
+      "user already used this offer 1x (max 1)": 1
+    }
+  },
+  "funnel": {
+    "linked_users": 0,
+    "statuses": {},
+    "eligibility_blocks": {}
+  }
+}

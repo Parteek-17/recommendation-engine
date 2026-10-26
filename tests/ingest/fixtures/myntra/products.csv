@@ -1,0 +1,8 @@
+p_id,name,price,mrp,brand,category,description,avg_rating,ratingCount,colour,seller_email
+10017413,Roadster Men Navy Blue Slim Fit T-shirt,"₹449","₹999",Roadster,Clothing>Men>T-shirts,"<p>Navy blue <b>cotton</b> T-shirt</p>",4.1,1520,Navy Blue,seller1@example.com
+10017414,HRX Men Black Running T-shirt,599,1299,HRX,Clothing>Men>T-shirts,Dry fit running tee,4.3,890,Black,seller2@example.com
+10017415,Libas Women Pink Kurta Set,"1,299",2599,Libas,Clothing>Women>Kurta Sets,Printed kurta with palazzo,4.0,410,Pink,seller3@example.com
+10017416,Puma Women Running Shoes,"Rs. 2,799",4999,Puma,Footwear>Women>Sports Shoes,Lightweight running shoes,,,White,seller4@example.com
+10017417,Plain Socks,,,,,Plain socks,3.5,12,Grey,seller5@example.com
+10017417,Duplicate Row Socks,99,99,X,Footwear>Men>Socks,dup,3.0,1,Grey,seller6@example.com
+,No Id Product,199,199,Y,Footwear>Men>Socks,no id,3.0,1,Grey,seller7@example.com

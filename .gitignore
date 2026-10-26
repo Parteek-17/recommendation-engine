@@ -1,0 +1,24 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Data (generated or large / private)
+data/app.db
+data/raw/
+data/external/
+data/processed/
+data/user_prefs.json
+
+# Trained models
+models/
+
+# Logs
+*.log
+logs/
