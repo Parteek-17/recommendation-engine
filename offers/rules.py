@@ -4,9 +4,9 @@ These are small *pure* functions (no database access), shared by the generator, 
 guardrails and the analysis. Keeping them in one place means "how big may a discount
 be?" has exactly one answer in the whole project.
 
-Limits that a store owner may want to change live in `.env` (MAX_DISCOUNT_PCT,
-APPROVAL_THRESHOLD_INR, DAILY_DISCOUNT_BUDGET_INR). The constants below are design
-choices of the offer engine itself.
+Limits that the marketing team may change live in `offers/rules.yaml` (also editable on the
+dashboard's "Offer rules" page). That file overrides the matching `.env` values and the
+defaults below; `refresh_rules()` picks up a saved change without a restart.
 """
 
 from __future__ import annotations
@@ -14,8 +14,12 @@ from __future__ import annotations
 import math
 import re
 import secrets
+from pathlib import Path
+
+import yaml
 
 from common.config import settings
+from common.logging_utils import get_logger
 from common.schemas import GuardrailResult, Offer, OfferType, TriggerType
 
 # ---------------------------------------------------------------------------
@@ -58,6 +62,12 @@ VALID_DAYS: dict[str, int] = {
     TriggerType.WIN_BACK: 14,
     TriggerType.FESTIVAL: 5,
 }
+
+# Rules from rules.yaml that are not plain limits (see load_rules / apply_rules below).
+SKIP_LIKELY_BUYERS: dict = {"enabled": False, "budget_bands": ["high"], "min_orders": 4,
+                            "lookback_days": 120, "triggers": ["cart_abandon", "price_drop"]}
+CONTROL_GROUP_PCT = 0
+AI_CHOICE: dict = {"enabled": True, "shortlist_size": 3}
 
 # First part of generated coupon codes, e.g. CART10-7KQ2.
 CODE_PREFIX: dict[str, str] = {
@@ -233,3 +243,179 @@ def offers_overlap(a: Offer, b: Offer, catalog) -> bool:
     if scope_a is None or scope_b is None:
         return True
     return bool(scope_a & scope_b)
+
+
+# ---------------------------------------------------------------------------
+# Editable rules: offers/rules.yaml (the marketing team's file)
+# ---------------------------------------------------------------------------
+
+log = get_logger(__name__)
+
+RULES_FILE = Path(__file__).with_name("rules.yaml")
+TRIGGERS = [t.value for t in TriggerType]
+BANDS = ("low", "mid", "high")
+_loaded_mtime: float | None = None
+last_error: str = ""  # shown on the dashboard when rules.yaml has a mistake
+
+
+def _number(errors: list[str], where: str, value, low: float, high: float) -> None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        errors.append(f"{where}: must be a number, got {value!r}")
+    elif not low <= value <= high:
+        errors.append(f"{where}: must be between {low:g} and {high:g}, got {value:g}")
+
+
+def _hhmm(errors: list[str], where: str, value) -> None:
+    if not isinstance(value, str) or not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", value):
+        errors.append(f'{where}: must be a time like "22:00", got {value!r}')
+
+
+def validate_rules(data: dict) -> list[str]:
+    """Plain-English problems in a rules dict (empty list = the rules are fine)."""
+    if not isinstance(data, dict):
+        return ["the file is empty or not in the expected format"]
+    errors: list[str] = []
+
+    def section(name: str) -> dict:
+        value = data.get(name)
+        if not isinstance(value, dict):
+            errors.append(f"section '{name}' is missing")
+            return {}
+        return value
+
+    lim = section("limits")
+    _number(errors, "limits.max_discount_pct", lim.get("max_discount_pct"), 0, 90)
+    _number(errors, "limits.min_margin_after_discount_pct", lim.get("min_margin_after_discount_pct"), 0, 50)
+    _number(errors, "limits.approval_threshold_inr", lim.get("approval_threshold_inr"), 0, 1_000_000)
+    _number(errors, "limits.daily_discount_budget_inr", lim.get("daily_discount_budget_inr"), 0, 100_000_000)
+    freq = section("frequency")
+    _number(errors, "frequency.max_offers_per_day", freq.get("max_offers_per_day"), 0, 10)
+    _number(errors, "frequency.max_offers_per_week", freq.get("max_offers_per_week"), 0, 50)
+    _hhmm(errors, "frequency.quiet_start", freq.get("quiet_start"))
+    _hhmm(errors, "frequency.quiet_end", freq.get("quiet_end"))
+    start = section("starting_discount_pct")
+    valid = section("offer_valid_days")
+    for t in TRIGGERS:
+        _number(errors, f"starting_discount_pct.{t}", start.get(t), 0, 90)
+        _number(errors, f"offer_valid_days.{t}", valid.get(t), 1, 60)
+    mult = section("price_sensitivity_multiplier")
+    for band in BANDS:
+        _number(errors, f"price_sensitivity_multiplier.{band}", mult.get(band), 0, 3)
+    skip = section("skip_likely_buyers")
+    if not isinstance(skip.get("enabled"), bool):
+        errors.append("skip_likely_buyers.enabled: must be true or false")
+    if not set(skip.get("budget_bands") or []) <= set(BANDS):
+        errors.append(f"skip_likely_buyers.budget_bands: use only {list(BANDS)}")
+    if not set(skip.get("triggers") or []) <= set(TRIGGERS):
+        errors.append(f"skip_likely_buyers.triggers: use only {TRIGGERS}")
+    _number(errors, "skip_likely_buyers.min_orders", skip.get("min_orders"), 1, 100)
+    _number(errors, "skip_likely_buyers.lookback_days", skip.get("lookback_days"), 1, 3650)
+    _number(errors, "control_group_pct", data.get("control_group_pct"), 0, 50)
+    ai = section("ai_choice")
+    if not isinstance(ai.get("enabled"), bool):
+        errors.append("ai_choice.enabled: must be true or false")
+    _number(errors, "ai_choice.shortlist_size", ai.get("shortlist_size"), 1, 10)
+    return errors
+
+
+def load_rules(path: Path | None = None) -> dict:
+    """Read rules.yaml as a dict (no validation)."""
+    with open(path or RULES_FILE, encoding="utf-8") as f:
+        return yaml.safe_load(f) or {}
+
+
+def apply_rules(data: dict) -> None:
+    """Make `data` the live rules. Dicts are updated IN PLACE so modules that imported them see the change."""
+    global MIN_MARGIN_AFTER_DISCOUNT_PCT, CONTROL_GROUP_PCT
+    lim, freq = data["limits"], data["frequency"]
+    settings.MAX_DISCOUNT_PCT = int(lim["max_discount_pct"])
+    settings.APPROVAL_THRESHOLD_INR = int(lim["approval_threshold_inr"])
+    settings.DAILY_DISCOUNT_BUDGET_INR = int(lim["daily_discount_budget_inr"])
+    settings.MAX_OFFERS_PER_DAY = int(freq["max_offers_per_day"])
+    settings.MAX_OFFERS_PER_WEEK = int(freq["max_offers_per_week"])
+    settings.QUIET_START, settings.QUIET_END = freq["quiet_start"], freq["quiet_end"]
+    MIN_MARGIN_AFTER_DISCOUNT_PCT = float(lim["min_margin_after_discount_pct"])
+    # Keys stay TriggerType members (an Enum hashes by its name, so "cart_abandon" would be a new key).
+    for key in BASE_DISCOUNT_PCT:
+        BASE_DISCOUNT_PCT[key] = float(data["starting_discount_pct"][key.value])
+    for key in VALID_DAYS:
+        VALID_DAYS[key] = int(data["offer_valid_days"][key.value])
+    SENSITIVITY_MULTIPLIER.update({b: float(data["price_sensitivity_multiplier"][b]) for b in BANDS})
+    SKIP_LIKELY_BUYERS.update(data["skip_likely_buyers"])
+    CONTROL_GROUP_PCT = float(data["control_group_pct"])
+    AI_CHOICE.update(data["ai_choice"])
+
+
+def refresh_rules(force: bool = False, path: Path | None = None) -> bool:
+    """Re-read rules.yaml if it changed since the last load. A broken file keeps the last good
+    rules (and sets `last_error`), so a typo can never switch the limits off. Returns True if applied."""
+    global _loaded_mtime, last_error
+    path = path or RULES_FILE
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return False  # no file: the defaults above stay in force
+    if not force and mtime == _loaded_mtime:
+        return False
+    _loaded_mtime = mtime
+    try:
+        data = load_rules(path)
+    except yaml.YAMLError as exc:
+        last_error = f"rules.yaml could not be read: {exc}"
+        log.error(last_error)
+        return False
+    errors = validate_rules(data)
+    if errors:
+        last_error = "; ".join(errors)
+        log.error("rules.yaml has mistakes, keeping the previous rules: %s", last_error)
+        return False
+    apply_rules(data)
+    last_error = ""
+    return True
+
+
+def save_rules(data: dict, path: Path | None = None) -> list[str]:
+    """Validate and write rules (used by the dashboard). Returns the problems; writes nothing if any.
+    The comments of the hand-written file are kept by replacing only the values, line by line."""
+    errors = validate_rules(data)
+    if errors:
+        return errors
+    path = path or RULES_FILE
+    lines = path.read_text(encoding="utf-8").splitlines()
+    section = None
+    for i, line in enumerate(lines):
+        top = re.match(r"^(\w+):", line)
+        if top:
+            section = top.group(1)
+            if section in data and not isinstance(data[section], dict):  # e.g. control_group_pct: 10
+                lines[i] = _replace_value(line, data[section])
+            continue
+        sub = re.match(r"^\s+(\w+):", line)
+        if sub and isinstance(data.get(section), dict) and sub.group(1) in data[section]:
+            lines[i] = _replace_value(line, data[section][sub.group(1)])
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    refresh_rules(force=True, path=path)
+    return []
+
+
+def _replace_value(line: str, value) -> str:
+    """'  key: old   # comment' -> '  key: new   # comment' (the comment keeps its column)."""
+    m = re.match(r"^(\s*\w+:\s*)(.*?)(\s*#.*)?$", line)
+    head, old, comment = m.group(1), m.group(2), m.group(3) or ""
+    if isinstance(value, str):
+        new = f'"{value}"'
+    elif isinstance(value, bool):
+        new = "true" if value else "false"
+    elif isinstance(value, list):
+        new = "[" + ", ".join(str(v) for v in value) + "]"
+    elif isinstance(value, float) and value.is_integer() and "." not in old:
+        new = str(int(value))
+    else:
+        new = str(value)
+    if not comment:
+        return head + new
+    gap = max(1, len(old) + len(comment) - len(comment.lstrip()) - len(new))
+    return head + new + " " * gap + comment.lstrip()
+
+
+refresh_rules(force=True)

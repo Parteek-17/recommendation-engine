@@ -341,3 +341,32 @@ def active_sends_for_user(user_id: str, now: datetime | None = None, limit: int 
             (user_id, stamp, stamp, limit),
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# Demo testers (bot-owned table): which synthetic shopper each classmate is playing
+# ---------------------------------------------------------------------------
+
+_TESTERS_DDL = ("CREATE TABLE IF NOT EXISTS tester_personas "
+                "(user_id TEXT PRIMARY KEY, persona TEXT, trigger_type TEXT, assigned_at TEXT)")
+
+
+def save_tester(user_id: str, persona: str, trigger_type: str, now: datetime | None = None) -> None:
+    with db() as conn:
+        conn.execute(_TESTERS_DDL)
+        conn.execute("INSERT OR REPLACE INTO tester_personas VALUES (?, ?, ?, ?)",
+                     (user_id, persona, trigger_type, _iso(now)))
+
+
+def list_testers() -> list[dict]:
+    """All tester rows, with whether their Telegram link is still active."""
+    with db() as conn:
+        conn.execute(_TESTERS_DDL)
+        rows = conn.execute(
+            "SELECT t.*, COALESCE(l.active, 0) AS active FROM tester_personas t "
+            "LEFT JOIN telegram_links l ON l.user_id = t.user_id ORDER BY t.assigned_at").fetchall()
+    return [dict(r) for r in rows]
+
+
+def tester_persona(user_id: str) -> dict | None:
+    return next((t for t in list_testers() if t["user_id"] == user_id), None)

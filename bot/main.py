@@ -21,7 +21,8 @@ from common.logging_utils import get_logger
 log = get_logger("bot")
 
 COMMANDS = [
-    ("start", "Link your account / switch offers on"),
+    ("start", "Pick a demo shopper / switch offers on"),
+    ("switch", "Play a different demo shopper"),
     ("recommend", "Top picks for you"),
     ("offers", "Your active offers"),
     ("settings", "Quiet hours, offers per week, categories"),
@@ -43,6 +44,7 @@ def build_application(token: str) -> Application:
     app.add_handler(CommandHandler("start", handlers.cmd_start))
     app.add_handler(CommandHandler("stop", handlers.cmd_stop))
     app.add_handler(CommandHandler("help", handlers.cmd_help))
+    app.add_handler(CommandHandler("switch", handlers.cmd_switch))
     app.add_handler(CommandHandler("gift", handlers.cmd_gift))
     app.add_handler(CommandHandler("recommend", handlers.cmd_recommend))
     app.add_handler(CommandHandler("offers", handlers.cmd_offers))

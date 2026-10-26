@@ -5,39 +5,50 @@
 
 The steps, in the approved order (each one writes a row to audit_log, component='pipeline'):
 
+    1. eligibility  offers.check_eligibility    consent, Telegram link, quiet hours, caps, segment
+       control      rules.yaml control_group_pct: a fixed share of users gets NO offer, so we can
+                    measure what offers really add (demo testers are never held out)
+       likely_buyer rules.yaml skip_likely_buyers: premium regulars get a reminder, not a discount
     0. prepare      personal triggers: let the Offer Engine create this user's offer
                     (only if the user is otherwise eligible — no coupons for opted-out users)
-    1. eligibility  offers.check_eligibility    consent, Telegram link, quiet hours, caps, segment
     2. fetch        offers.fetch_live_offers    Offers API over HTTP (API key stays server-side)
     3. rank         reco.rank_offers_for_user   best offer for THIS user first
     4. guardrails   offers.apply_offer_guardrails
+    4b. choose      llm.offer_chooser           Claude PICKS from the rule-approved shortlist (or
+                    "no discount"); an answer outside the shortlist is rejected -> rec engine's pick
     5. write        llm.write_offer_message     Claude writes the words only
     6. revalidate   offers.revalidate           still live? price unchanged? in stock?
     7. send         bot.send_offer              Telegram; the bot writes the offer_sends row itself
 
 Any step that says "no" stops the run safely and the reason is in audit_log.
-The ONE exception is step 5: if the LLM fails we send a plain template message instead.
+The exceptions are steps 4b and 5: if the LLM fails we use the rec engine's pick / a plain template.
 `dry_run=True` runs steps 0-6 and returns the message that WOULD be sent, without sending.
 """
 
 from __future__ import annotations
 
 import threading
+import zlib
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import requests
 
-from bot import send_offer
+from bot import send_offer, send_text
 from common.config import settings
 from common.db import get_connection
 from common.logging_utils import audit, get_logger, now_local
 from common.schemas import Offer, TriggerType
+from llm import catalog as llm_catalog
 from llm import client as llm_client
 from llm import write_offer_message
-from llm.templates import fallback_offer_message
+from llm.offer_chooser import NO_DISCOUNT, OfferChoice, choose_offer
+from llm.templates import discount_text, fallback_offer_message
 from offers import apply_offer_guardrails, check_eligibility, fetch_live_offers, revalidate
+from offers import rules
 from offers.generator import generate_offers
+from offers.segments import budget_band
+from offers.store import Catalog
 from pipeline import store
 from reco import build_user_context, rank_offers_for_user
 
@@ -58,11 +69,15 @@ class PipelineResult:
     offer_id: str | None = None
     message: str | None = None
     steps: list[str] = field(default_factory=list)  # steps that passed, in order
+    chosen_by: str = ""       # "ai" | "ranker" | "rule": who picked the offer (step 4b)
+    choice_reason: str = ""   # why, in plain English (shown on the dashboard)
+    ai_rejected: str = ""     # set when the AI's pick broke the rules and was replaced
 
 
-# Final statuses (anything other than "sent" / "dry_run" means nothing was delivered):
-#   invalid_trigger · blocked (eligibility) · offers_api_down · no_offer · guardrail_blocked
-#   revalidate_failed · dry_run · sent · failed / blocked from the bot's final check
+# Final statuses (anything other than "sent" / "dry_run" / "reminder_sent" means nothing was delivered):
+#   invalid_trigger · blocked (eligibility) · holdout (control group) · offers_api_down · no_offer
+#   guardrail_blocked · revalidate_failed · dry_run · sent · failed / blocked from the bot's final check
+#   reminder_sent / reminder_dry_run (no-discount nudge: likely buyer, or the AI chose "no discount")
 
 
 def _step(result: PipelineResult, step: str, decision: str, reason: str = "", **details) -> None:
@@ -134,7 +149,93 @@ def _send_status(user_id: str, offer_id: str) -> str:
     return row["status"] if row else "failed"
 
 
+def in_control_group(user_id: str) -> bool:
+    """Fixed, random-looking split: the same user is always in (or out of) the control group."""
+    if rules.CONTROL_GROUP_PCT <= 0 or store.is_tester(user_id):
+        return False
+    return zlib.crc32(user_id.encode()) % 100 < rules.CONTROL_GROUP_PCT
+
+
+def likely_buyer(user_id: str, trigger_type: str, now: datetime) -> str | None:
+    """Reason text if rules.yaml says this user would probably buy without a discount, else None."""
+    rule = rules.SKIP_LIKELY_BUYERS
+    if not rule.get("enabled") or trigger_type not in rule.get("triggers", []):
+        return None
+    band = budget_band(user_id)
+    if band not in rule.get("budget_bands", []):
+        return None
+    orders = store.orders_since(user_id, now - timedelta(days=int(rule["lookback_days"])))
+    if orders < int(rule["min_orders"]):
+        return None
+    return f"likely to buy anyway ({band} budget band, {orders} orders in {rule['lookback_days']} days): no discount needed"
+
+
+def reminder_message(user_id: str, trigger_type: str) -> str:
+    """A friendly nudge WITHOUT a coupon. Product names and prices come from the DB."""
+    event = {"cart_abandon": "add_to_cart", "price_drop": "wishlist"}.get(trigger_type)
+    product = llm_catalog.get_product(store.open_item(user_id, event)) if event else None
+    if product and trigger_type == "cart_abandon":
+        return (f"🛒 Your {product['title']} is still saved in your cart "
+                f"({llm_catalog.format_inr(product['price'])}). It's ready whenever you are!")
+    if product:
+        return (f"💖 {product['title']} from your wishlist is now "
+                f"{llm_catalog.format_inr(product['price'])}. Take another look?")
+    return "✨ We've picked a few new things you might like. Send /recommend to see them!"
+
+
+def _send_reminder(result: PipelineResult, why: str, now: datetime, dry_run: bool) -> PipelineResult:
+    """No discount, just a reminder: costs the store nothing, so no offer rules are needed."""
+    message = reminder_message(result.user_id, result.trigger_type)
+    result.message = message
+    if dry_run:
+        _step(result, "send", "dry_run", f"reminder (dry run): {why}", message=message)
+        return _stop(result, "reminder_dry_run", why)
+    sent = send_text(result.user_id, message, now=now)
+    _step(result, "send", "sent" if sent else "failed", f"reminder without discount: {why}", message=message)
+    return _stop(result, "reminder_sent" if sent else "failed", why)
+
+
+def shopper_facts(user_id: str, trigger_type: str, now: datetime) -> dict:
+    """Non-personal facts the AI chooser may see (no name, no id, no city)."""
+    context = build_user_context(user_id)
+    return {
+        "budget_band": context.budget_band or "mid",
+        "likes": ", ".join(llm_catalog.category_name(c) for c in context.top_categories[:3]),
+        "orders_last_120_days": store.orders_since(user_id, now - timedelta(days=120)),
+        "reason_for_offer": trigger_type.replace("_", " "),
+    }
+
+
+def candidate_facts(offer: Offer, ranked, catalog: Catalog) -> dict:
+    product = llm_catalog.get_product(offer.product_id) if offer.product_id else None
+    bundle = llm_catalog.get_product(offer.bundle_product_id) if offer.bundle_product_id else None
+    facts = {
+        "offer_id": offer.offer_id,
+        "what": discount_text(offer),
+        "product": product["title"] if product else "",
+        "bundled_with": bundle["title"] if bundle else "",
+        "category": llm_catalog.category_name(offer.category_id) if offer.category_id else "",
+        "min_cart_inr": offer.min_cart_value or 0,
+        "est_cost_inr": rules.offer_value_inr(offer, catalog),
+        "rec_engine_score": round(float(ranked.score), 3),
+        "rec_engine_reason": ranked.reason,
+    }
+    return {k: v for k, v in facts.items() if v not in ("", None)}
+
+
+def _choose(result: PipelineResult, safe: list, offers: list[Offer], now: datetime) -> OfferChoice:
+    """Step 4b: the AI picks from the shortlist the rules approved; the rules check its answer."""
+    shortlist = safe[: int(rules.AI_CHOICE.get("shortlist_size", 3))]
+    if not rules.AI_CHOICE.get("enabled"):
+        return OfferChoice(shortlist[0].offer_id, "rec engine's top pick (AI choice is off in rules.yaml)", "ranker")
+    by_id = {o.offer_id: o for o in offers}
+    catalog = Catalog.load()
+    candidates = [candidate_facts(by_id[r.offer_id], r, catalog) for r in shortlist]
+    return choose_offer(shopper_facts(result.user_id, result.trigger_type, now), candidates, result.user_id)
+
+
 def _run(user_id: str, trigger_type: str, now: datetime, dry_run: bool) -> PipelineResult:
+    rules.refresh_rules()  # pick up any change the marketing team saved in rules.yaml
     result = PipelineResult(user_id, trigger_type)
     try:
         TriggerType(trigger_type)
@@ -159,6 +260,18 @@ def _run_steps(result: PipelineResult, check, no_offer_yet: bool, now: datetime,
                llm_warm_up: threading.Thread | None) -> PipelineResult:
     """Steps 0-7 for a user who passed (or may pass, once an offer exists) step 1."""
     user_id, trigger_type = result.user_id, result.trigger_type
+
+    # --- 1b. Control group: no offer at all, so we can measure what offers add ----------
+    if in_control_group(user_id):
+        _step(result, "control", "holdout", f"control group ({rules.CONTROL_GROUP_PCT:g}% of users get no offer)")
+        return _stop(result, "holdout", "control group: no offer, used to measure uplift")
+    # --- 1c. Would they buy anyway? Then a reminder, not a discount -------------------
+    why = likely_buyer(user_id, trigger_type, now)
+    if why:
+        _step(result, "likely_buyer", "ok", why)
+        result.chosen_by, result.choice_reason = "rule", why
+        return _send_reminder(result, why, now, dry_run)
+
     personal = trigger_type != TriggerType.FESTIVAL.value
     if no_offer_yet or (check.allowed and personal):
         # The user passed consent / Telegram / quiet hours / caps. Let the Offer Engine make
@@ -201,10 +314,22 @@ def _run_steps(result: PipelineResult, check, no_offer_yet: bool, now: datetime,
     if not safe:
         _step(result, "guardrails", "blocked", "every offer was removed by the guardrails")
         return _stop(result, "guardrail_blocked", "every offer was removed by the guardrails")
-    offer = next(o for o in offers if o.offer_id == safe[0].offer_id)  # send only the best one
+    _step(result, "guardrails", "allowed", f"{len(safe)} safe offer(s)",
+          safe=[r.offer_id for r in safe[:5]])
+
+    # --- 4b. The AI chooses (only from what the rules approved) ---------------------------
+    if llm_warm_up:
+        llm_warm_up.join()  # Claude client ready (usually finished while steps 0-4 ran)
+        llm_warm_up = None
+    choice = _choose(result, safe, offers, now)
+    result.chosen_by, result.choice_reason, result.ai_rejected = choice.source, choice.reason, choice.rejected
+    _step(result, "choose", "fallback" if choice.rejected else "ok",
+          f"{choice.source}: {choice.offer_id} — {choice.reason}", offer_id=choice.offer_id,
+          ai_rejected=choice.rejected)
+    if choice.offer_id == NO_DISCOUNT:
+        return _send_reminder(result, f"AI chose no discount: {choice.reason}", now, dry_run)
+    offer = next(o for o in offers if o.offer_id == choice.offer_id)  # send only the chosen one
     result.offer_id = offer.offer_id
-    _step(result, "guardrails", "allowed", f"{len(safe)} safe offer(s), using {offer.offer_id}",
-          offer_id=offer.offer_id)
 
     # --- 5. LLM writes the words (never stops the pipeline) ------------------------------
     if llm_warm_up:
@@ -255,7 +380,8 @@ def run_pipeline(user_id: str, trigger_type: str, *, now: datetime | None = None
         log.exception("pipeline %s/%s crashed", user_id, trigger_type)
         result = PipelineResult(user_id, trigger_type, status="error", reason=f"{type(exc).__name__}: {exc}")
     audit(COMPONENT, user_id, "run_offer_pipeline", result.status, result.reason,
-          {"trigger_type": trigger_type, "offer_id": result.offer_id, "dry_run": dry_run, "steps": result.steps})
+          {"trigger_type": trigger_type, "offer_id": result.offer_id, "dry_run": dry_run, "steps": result.steps,
+           "chosen_by": result.chosen_by, "choice_reason": result.choice_reason, "ai_rejected": result.ai_rejected})
     store.record_run(user_id, trigger_type, result.status, now, dry_run)
     return result
 

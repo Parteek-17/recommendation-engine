@@ -17,7 +17,7 @@ from tests.integration.conftest import (
 NEW_USER, NEW_CHAT = "U00010", 700000010   # not linked, not opted in in the sample data
 CART_ITEM = "P00033"                        # Adidas Sports Socks: in stock, not age-restricted
 
-APPROVED_ORDER = ["step_eligibility", "step_fetch", "step_rank", "step_guardrails",
+APPROVED_ORDER = ["step_eligibility", "step_fetch", "step_rank", "step_guardrails", "step_choose",
                   "step_write", "step_revalidate", "step_send"]
 
 

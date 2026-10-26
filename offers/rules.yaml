@@ -1,0 +1,61 @@
+# =============================================================================
+#  OFFER RULES — the marketing team's control panel
+# =============================================================================
+#  Every number below is a hard limit. The AI can pick and word offers, but it
+#  can NEVER go past these limits: each AI choice is checked against this file
+#  before anything is sent.
+#
+#  How to change a rule:
+#    * easiest: open the dashboard → "⚙️ Offer rules" page, move a slider, Save.
+#    * or edit this file in any text editor and save it.
+#  Changes apply on the next offer run (no restart needed).
+#  If you type something invalid, the system keeps the last good rules and the
+#  dashboard tells you which line is wrong.
+# =============================================================================
+
+limits:
+  max_discount_pct: 40              # No offer is ever bigger than this (% off).
+  min_margin_after_discount_pct: 2  # After any discount we still keep this much profit (% of price).
+  approval_threshold_inr: 1000      # Offers worth more than ₹ this wait for a manager's OK.
+  daily_discount_budget_inr: 50000  # Total ₹ we may give away per day, across all customers.
+
+frequency:                          # Don't annoy customers.
+  max_offers_per_day: 1             # Per customer.
+  max_offers_per_week: 3            # Per customer (a customer can choose fewer, never more).
+  quiet_start: "22:00"              # No messages between quiet_start ...
+  quiet_end: "08:00"                # ... and quiet_end (customer's local time).
+
+starting_discount_pct:              # Discount we start from, per reason for the offer.
+  cart_abandon: 10                  # Left items in the cart.
+  price_drop: 8                     # A wishlisted item got cheaper.
+  repurchase_due: 5                 # Time to re-order a regular item (groceries, beauty).
+  post_purchase: 10                 # Just bought something: discount on a matching item.
+  win_back: 15                      # Hasn't shopped for 30+ days.
+  festival: 20                      # Festival sale (Diwali, etc.).
+
+price_sensitivity_multiplier:       # Starting discount × this, by how price-sensitive the shopper is.
+  low: 1.5                          # Budget shoppers: a bigger discount actually changes their mind.
+  mid: 1.0                          # Regular shoppers.
+  high: 0.7                         # Premium shoppers often buy anyway: smaller discount.
+
+offer_valid_days:                   # How long a coupon stays valid.
+  cart_abandon: 2
+  price_drop: 3
+  repurchase_due: 7
+  post_purchase: 7
+  win_back: 14
+  festival: 5
+
+skip_likely_buyers:                 # Don't pay people who would buy anyway.
+  enabled: true
+  budget_bands: [high]              # Only premium shoppers ("high" budget band) ...
+  min_orders: 4                     # ... who ordered at least this many times ...
+  lookback_days: 120                # ... in this many days ...
+  triggers: [cart_abandon, price_drop]   # ... get a friendly reminder WITHOUT a discount for these reasons.
+
+control_group_pct: 10               # % of customers who get NO offer, so we can measure what offers really add.
+                                    # (Test users in the Telegram demo are never put in the control group.)
+
+ai_choice:
+  enabled: true                     # true = Claude picks the offer from the shortlist the rules approved.
+  shortlist_size: 3                 # How many rule-approved offers Claude may choose between.

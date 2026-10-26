@@ -115,6 +115,12 @@ def offer_keyboard(send_id: str) -> InlineKeyboardMarkup:
     ])
 
 
+def persona_keyboard(personas) -> InlineKeyboardMarkup:
+    """One button per demo shopper type (bot/personas.py), two per row."""
+    buttons = [InlineKeyboardButton(p.button, callback_data=f"t:{p.key}") for p in personas]
+    return InlineKeyboardMarkup([buttons[i:i + 2] for i in range(0, len(buttons), 2)])
+
+
 def reasons_keyboard(kind: str, item_id: str) -> InlineKeyboardMarkup:
     """The 'why not?' follow-up. kind = 'p' (product) or 'o' (offer send)."""
     return InlineKeyboardMarkup([[

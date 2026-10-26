@@ -102,3 +102,35 @@ def reachable_users(db_path: str | Path | None = None) -> set[str]:
             "WHERE c.opted_in = 1 AND t.active = 1 AND t.chat_id IS NOT NULL"
         ).fetchall()
     return {r["user_id"] for r in rows}
+
+
+# ---------------------------------------------------------------------------
+# Business-rule lookups (control group, likely buyers, reminders)
+# ---------------------------------------------------------------------------
+
+
+def is_tester(user_id: str, db_path: str | Path | None = None) -> bool:
+    """Is this synthetic user being played by a real person in the Telegram demo (bot/personas.py)?"""
+    with get_connection(db_path) as conn:
+        try:
+            return conn.execute("SELECT 1 FROM tester_personas WHERE user_id = ?", (user_id,)).fetchone() is not None
+        except Exception:  # table not created yet (no tester has joined)
+            return False
+
+
+def orders_since(user_id: str, since: datetime, db_path: str | Path | None = None) -> int:
+    with get_connection(db_path) as conn:
+        row = conn.execute("SELECT COUNT(*) AS n FROM orders WHERE user_id = ? AND order_date >= ?",
+                           (user_id, since.isoformat(timespec="seconds"))).fetchone()
+    return int(row["n"])
+
+
+def open_item(user_id: str, event_type: str, db_path: str | Path | None = None) -> str | None:
+    """Newest product the user added to cart / wishlisted (`event_type`) and has not bought or removed since."""
+    with get_connection(db_path) as conn:
+        row = conn.execute(
+            "SELECT e.product_id FROM events e WHERE e.user_id = ? AND e.event_type = ? AND NOT EXISTS ("
+            "  SELECT 1 FROM events x WHERE x.user_id = e.user_id AND x.product_id = e.product_id"
+            "  AND x.event_type IN ('purchase', 'remove_from_cart') AND x.timestamp >= e.timestamp)"
+            " ORDER BY e.timestamp DESC LIMIT 1", (user_id, event_type)).fetchone()
+    return row["product_id"] if row else None

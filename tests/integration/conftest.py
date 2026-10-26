@@ -83,8 +83,13 @@ def llm_mock():
 
 
 @pytest.fixture
-def system(offers_api, telegram, llm_mock):
-    """Everything up: Offers API, Telegram (fake), Claude (mock)."""
+def system(offers_api, telegram, llm_mock, monkeypatch):
+    """Everything up: Offers API, Telegram (fake), Claude (mock).
+    The control group is off here (tests/integration/test_business_rules.py covers it), so a
+    test user can't silently land in the 10% that never gets an offer."""
+    from offers import rules
+
+    monkeypatch.setattr(rules, "CONTROL_GROUP_PCT", 0)
     return SimpleNamespace(offers_api=offers_api, telegram=telegram)
 
 

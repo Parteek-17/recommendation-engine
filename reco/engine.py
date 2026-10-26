@@ -152,8 +152,8 @@ class Recommender:
         """What JOB each product does, guessed from its title: the last word before any "(".
         "Redmi Flagship 5G Smartphone (12GB/256GB)" -> "smartphone", "Spigen Back Cover (...)" -> "cover".
         A leaf category can hold several kinds (Mobile Accessories = covers, chargers, earbuds...).
-        Where titles don't give a few clear kinds (e.g. books end in the author's name), the whole
-        category counts as one kind. Computed once, then cached."""
+        Where titles don't give a few clear kinds (books end in the author's name, exam guides in
+        "Class 10"), the whole category counts as one kind. Computed once, then cached."""
         cache = self.__dict__.get("_kinds")
         if cache is None:
             def noun(title) -> str | None:
@@ -164,7 +164,9 @@ class Recommender:
             cat = self.items["category_id"]
             for c, group in kind.groupby(cat):
                 sizes = group.value_counts()
-                clear = group.notna().all() and len(sizes) <= MAX_KINDS_PER_CATEGORY                     and sizes.median() >= MIN_PRODUCTS_PER_KIND
+                clear = (group.notna().all() and len(sizes) <= MAX_KINDS_PER_CATEGORY
+                         and sizes.median() >= MIN_PRODUCTS_PER_KIND
+                         and all(w.replace("-", "").isalpha() for w in sizes.index))  # "Class 10": no kind
                 if not clear:
                     kind[(cat == c).values] = c
             cache = self.__dict__["_kinds"] = kind.where(kind.notna(), cat)

@@ -22,7 +22,7 @@ import asyncio
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from bot import deps, keyboards, store
+from bot import deps, keyboards, personas, store
 from bot.keyboards import NOT_INTERESTED_REASONS, QUIET_PRESETS, clip
 from bot.linking import link_chat
 from bot.sender import ChatRateLimiter
@@ -42,6 +42,7 @@ HELP_TEXT = (
     "/offers – your active offers\n"
     "/settings – quiet hours, offers per week, favourite categories\n"
     "/gift – turn gift mode on/off (picks for someone else)\n"
+    "/switch – play a different demo shopper\n"
     "/stop – stop all offers\n"
     "/help – this message\n\n"
     "Or just type what you're looking for, e.g. \"running shoes under ₹3000\"."
@@ -52,6 +53,12 @@ NOT_LINKED_TEXT = (
     "It brings you back here and links your account."
 )
 SORRY_TEXT = "Sorry, something went wrong on our side. Please try again in a minute."
+PERSONA_TEXT = (
+    "Welcome to the Parvaaz offer engine demo! 👋\n\n"
+    "Our shop's customers are synthetic, so pick a shopper to play. You'll take over their "
+    "shopping history and get the offer our system would send them — chosen by AI, checked "
+    "against the store's rules.\n\nWho do you want to be?"
+)
 
 
 async def _reply(update: Update, text: str, markup=None) -> None:
@@ -83,8 +90,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     user_id = _user(update)
-    if user_id is None:
-        await _reply(update, "Welcome! 👋\n\n" + NOT_LINKED_TEXT)
+    if user_id is None:  # a classmate without a shop account: let them play a demo shopper
+        await _reply(update, PERSONA_TEXT, keyboards.persona_keyboard(personas.PERSONAS))
         return
     if not store.is_opted_in(user_id):
         store.set_opt_in(user_id, True)
@@ -106,6 +113,32 @@ async def cmd_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await _reply(update, HELP_TEXT)
+
+
+async def cmd_switch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Pick another demo shopper (each one shows a different kind of offer)."""
+    await _reply(update, "Who do you want to be next?", keyboards.persona_keyboard(personas.PERSONAS))
+
+
+async def _persona_button(update: Update, key: str) -> None:
+    """A tester picked a shopper type: link them to a fitting synthetic user, then run the
+    real offer pipeline for that user right away, and explain what happened."""
+    persona = personas.BY_KEY.get(key)
+    if persona is None:
+        return
+    from pipeline.offer_pipeline import run_pipeline  # lazy: the pipeline imports this package
+
+    await update.callback_query.edit_message_reply_markup(None)
+    await _reply(update, f"⏳ Setting you up as {persona.button}…")
+    user_id = await asyncio.to_thread(personas.assign, persona.key, update.effective_chat.id)
+    if user_id is None:
+        await _reply(update, "Sorry, every demo shopper is taken right now. Please try another type.")
+        return
+    summary = await asyncio.to_thread(personas.profile_summary, user_id)
+    await _reply(update, f"You are now {persona.story}.\n\n{summary}\n\n"
+                         f"🎯 What should happen: {persona.expect}.\n⏳ Our system is deciding your offer…")
+    result = await asyncio.to_thread(run_pipeline, user_id, persona.trigger_type)
+    await _reply(update, personas.explain_result(result) + "\n\nTry /switch for another shopper, or /help.")
 
 
 async def cmd_gift(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -209,6 +242,9 @@ def _offer_text(offer: dict) -> str:
 async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()  # stops the little loading spinner on the button
+    if (query.data or "").startswith("t:"):  # demo shopper choice works before linking
+        await _persona_button(update, query.data[2:])
+        return
     user_id = _user(update)
     if user_id is None:
         await _reply(update, NOT_LINKED_TEXT)

@@ -54,20 +54,25 @@ so a purchase logged a second ago immediately changes that user's recommendation
 |---|---|---|
 | 1. Data prep | `data.py` | Loads tables (app.db, CSV fallback), sums event weights per user×product (view 1 … purchase 6), builds the sparse user×item matrix, splits by time. Gift-session events are **excluded** from personal taste. |
 | 2. Evaluation | `evaluate.py` | Backtest: train on the past, check top-10 lists against what users did next. Recall/NDCG/MAP@10, coverage, diversity, novelty, ground-truth checks, rule ablation. |
-| 3. Popularity | `candidates/popular.py` | All-time popular + **trending** (last 14 days, half-life 7 days) + "popular with people like you" (age group + gender). The baseline everything must beat. |
+| 3. Popularity | `candidates/popular.py` | All-time popular + **trending** (last 14 days, half-life 7 days) + "popular with people like you" (same city tier — tier tracks price sensitivity). The baseline everything must beat. |
 | 4. Item-item CF | `candidates/item_cf.py` | "People who liked X also liked Y" — cosine similarity between products' audiences (with shrinkage so one shared user isn't "perfect"). **Complements** = bought by the same user within 30 days, *different* category, weighted by how typical that category pair is. |
 | 5. ALS | `candidates/als.py` | Learns ~32 hidden "taste numbers" per product (`implicit` library). A user's numbers are solved from their latest history on each call ("fold-in"). Falls back to scikit-learn `TruncatedSVD` if `implicit` can't be installed. |
 | 6. Content | `candidates/content.py` | TF-IDF on title + brand + category + tags + description. Rare words ("galaxy", "yoga") matter, boilerplate doesn't. Gives brand-new products a chance (cold start). |
 | 7. Merge | `candidates/merge.py` | ~200 candidates per user from all sources, each source's score scaled 0..1, plus the "anchor" product for the reason. |
 | 8. Ranker | `ranker.py` | LightGBM **LambdaRank** reorders candidates using 18 features (source scores, category affinity, popularity, trend, price vs. the user's usual level, rating, recency, cart/wishlist…). Trained on two rolling 15-day windows **before** the test period (≤1,500 users each). Skipped for users with no history; their features would be empty. |
-| 9. Rules | `rerank.py` | Out-of-stock removed · minors never see age-restricted items · bought non-consumables hidden, their **substitutes hidden for 60 days** · **complements of recent purchases boosted** · restock reminders for consumables · soft budget fit (hard filter if the user chose a band) · max 3 per brand/category per 10 items · ~20% long-tail slots · gift mode ignores personal history. |
+| 9. Rules | `rerank.py` | Out-of-stock removed · minors never see age-restricted items · bought non-consumables hidden, their **substitutes hidden for 60 days** · **just bought (14 days): the whole leaf category hidden**, except complements of that purchase · **complements of recent purchases boosted** (much harder in the first 7 days) · restock reminders for consumables · soft budget fit (hard filter if the user chose a band) · max 3 per brand/category per 10 items · ~20% long-tail slots · gift mode ignores personal history. |
 | 10. Reasons | `explain.py` | One sentence per item from its strongest source + anchor product, plus "· Within your usual budget". Built only from our own data. |
 | 11. API | `service.py`, `offer_ranking.py` | Contract functions; offer scoring = product match (cart/wishlist/bundle/buy-again) + category match + value for price-sensitive users − min-cart/segment mismatch. |
 | 12. Train | `train.py` | Ranker on rolling windows + all candidate models on ALL data → `models/reco_bundle.pkl`. |
 
 **Substitute vs. complement** (post-purchase intelligence): a substitute is something you'd buy *instead*
-(same leaf category, within 4× the price); a complement goes *with* it
-(bought together, different category).
+(same leaf category, same **kind**, within 4× the price); a complement goes *with* it
+(bought together, different category). The kind is the last word of the title before any "(":
+"Redmi Flagship 5G Smartphone (12GB/256GB)" → smartphone, "Spigen Back Cover (...)" → cover. So owning
+earbuds no longer hides phone covers and chargers, which share the "Mobile Accessories" category.
+Categories whose titles don't give a few clear kinds (books, exam guides) count as one kind.
+For the first 14 days after a purchase the whole leaf category is hidden at any price and kind
+(no ₹1.8k keypad phone after a ₹46k flagship).
 
 **"Now"** for a user = the later of their latest event and the latest event in the data (our data ends
 2026-09-30, so the real clock would make every purchase look ancient).
@@ -112,10 +117,10 @@ Test window, NDCG@10 vs. the popularity baseline:
 
 ## Tuning knobs (constants at the top of each file)
 
-`rerank.py`: `SUBSTITUTE_BLOCK_DAYS`, `RECENT_PURCHASE_DAYS`, `COMPLEMENT_BOOST`, `RESTOCK_BOOST`,
+`rerank.py`: `SUBSTITUTE_BLOCK_DAYS`, `SAME_CATEGORY_BLOCK_DAYS`, `RECENT_PURCHASE_DAYS`, `FRESH_PURCHASE_DAYS`, `COMPLEMENT_BOOST`, `FRESH_COMPLEMENT_BOOST`, `RESTOCK_BOOST`,
 `MAX_PER_BRAND/CATEGORY`, `LONG_TAIL_SHARE`, `BUDGET_LIMITS` · `merge.py`: `BLEND_WEIGHTS`,
 `CANDIDATES_PER_USER` · `item_cf.py`: `SHRINKAGE`, `CO_BUY_WINDOW_DAYS`, `MIN_CATEGORY_CONFIDENCE` ·
-`popular.py`: `TRENDING_DAYS`, `HALF_LIFE_DAYS` · `ranker.py`: `MAX_USERS_PER_WINDOW` (1,500) ·
+`popular.py`: `TRENDING_DAYS`, `HALF_LIFE_DAYS`, `SEGMENT_SHARE`, `SEGMENT_COLUMNS` · `engine.py`: `SUBSTITUTE_PRICE_RATIO`, `MAX_KINDS_PER_CATEGORY` · `ranker.py`: `MAX_USERS_PER_WINDOW` (1,500) ·
 `evaluate.py`: `MAX_EVAL_USERS` (1,000 sampled users on big data).
 
 ## Performance notes (pandas 3)

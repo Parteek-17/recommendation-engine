@@ -33,10 +33,10 @@ def test_start_with_token_links(bot_db):
     assert store.user_for_chat(1234) == "U00010" and store.is_opted_in("U00010")
 
 
-def test_start_without_token_explains_linking(bot_db):
+def test_start_without_token_offers_demo_shoppers(bot_db):
     update = make_update(1234)
     run(handlers.cmd_start(update, make_context()))
-    assert "Get offers on Telegram" in texts(update)[0]
+    assert "pick a shopper" in texts(update)[0].lower()
 
 
 def test_stop_opts_out_and_start_opts_back_in(bot_db):
