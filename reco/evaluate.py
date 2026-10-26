@@ -29,6 +29,7 @@ Protocol:
 from __future__ import annotations
 
 import math
+import sys
 import time
 from collections import defaultdict
 
@@ -345,7 +346,7 @@ def run(db_path=None, out_path=RESULTS_PATH) -> str:
         "",
     ]
     text = "\n".join(md)
-    out_path.write_text(text, encoding="utf-8")
+    out_path.write_text(text, encoding="utf-8", newline="\n")  # LF on Windows too (clean git diffs)
     return text
 
 
@@ -357,6 +358,8 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=RESULTS_PATH, help="where to write the report")
     args = parser.parse_args()
     text = run(out_path=args.out)
+    if hasattr(sys.stdout, "reconfigure"):  # Windows consoles/redirects are cp1252: "≤" would crash the print
+        sys.stdout.reconfigure(errors="replace")
     print(text)
     print(f"\nSaved to {args.out}")
 

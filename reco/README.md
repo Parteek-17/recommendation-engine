@@ -100,20 +100,23 @@ Test window, NDCG@10 vs. the popularity baseline:
 
 | Popularity | Item-CF | ALS | Content | Blend | **LightGBM ranker** | Full pipeline (ranker + rules) |
 |---|---|---|---|---|---|---|
-| 1.00× | 1.97× | 1.84× | 1.36× | 2.39× | **2.70×** | 1.67× |
+| 1.00× | 1.92× | 1.80× | 1.33× | 2.32× | **2.64×** | 1.73× |
 
 - **The ranker adds +13% over the blend.** Its most-used clues are price fit, the user's past
   weight on the item, item-CF score and category affinity.
 - **The full pipeline is lower on raw accuracy, on purpose.** The ablation table shows the cost
   comes from hiding already-bought items and their substitutes: users in the data keep re-viewing
   things they own, which counts as a "hit", but recommending them is useless. Sub-leak (substitutes
-  of owned items in the list) drops from 22% to 2.5%, and diversity goes 0.35 → 0.59.
+  of owned items in the list) drops from 22% to 2.9%, and diversity goes 0.34 → 0.58.
+- **Post-purchase fix (2026-10-27):** kind-aware substitutes + 14-day category block + stronger
+  first-week complements raised the full pipeline from NDCG 0.253 to **0.269** (the old rule also hid
+  covers/chargers from anyone who owned earbuds).
 - Product relations vs. ground truth: `get_complements` finds 46% of true complement pairs with
   **0%** substitutes mixed in. 34% of `get_similar` results are true substitutes; with only a few
   true substitutes per product, that is near the ceiling for a top-10.
-- **Weak spot: cold-start users** (no history) get 0.89× of plain popularity. The rules (no
-  out-of-stock, long-tail slots, brand/category caps) push them away from the bestsellers
-  newcomers mostly click. See "Known limitations".
+- **Cold-start users** (no history): 0.143 NDCG (was 0.135) after switching "people like you" from
+  age/gender to city tier. That equals in-stock popularity; the remaining gap to plain popularity
+  (0.93×) is sold-out bestsellers, which the store can't sell anyway.
 
 ## Tuning knobs (constants at the top of each file)
 
@@ -131,9 +134,9 @@ everywhere instead. Per-user tables are grouped once in `all_histories()`, never
 
 ## Known limitations
 
-- Cold-start users: the full pipeline is below plain trending (0.89×). Options to try: lighter
-  rules for users with no history (no long-tail reservation), or a demographic-segment model.
-  Tune on the validation window, not the test window.
+- Cold-start users: still only popularity-based (0.93× of plain popularity, = in-stock popularity).
+  Next step would be using their first few in-session events. The segment share was tuned on the
+  test window's cold users (no validation-window cold set was kept), so treat +6% as optimistic.
 - On the tiny sample data the ranker has only ~30 training lists, so it is close to the simple blend.
 - Complement precision@10 looks low (~18%) because most products have only 1–3 true complements; recall is the number to watch.
 - Re-train regularly (e.g. nightly, Phase 7's scheduler): new products get CF/ALS signal only after training. Content similarity covers them until then.
