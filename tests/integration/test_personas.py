@@ -43,3 +43,13 @@ def test_switch_moves_the_chat_to_another_shopper(system):
     second = bot_store.user_for_chat(chat)
     assert second and second != first
     assert {t["persona"] for t in bot_store.list_testers()} >= {"grocer", "lapsed"}
+
+
+def test_demo_round_runs_for_every_active_tester(system):
+    from pipeline.demo_round import demo_round
+
+    press_button(700000106, "t:student")
+    press_button(700000107, "t:gifter")
+    rows = demo_round(dry_run=True)
+    assert {r["user"] for r in rows} >= {bot_store.user_for_chat(700000106), bot_store.user_for_chat(700000107)}
+    assert all(r["status"] for r in rows)

@@ -76,7 +76,12 @@ def check_data_and_models(fix: bool) -> bool:
             print("  [!!] database is empty: run python scripts/init_db.py")
             return False
         print("  ...  database is empty, loading DATA_SOURCE =", settings.DATA_SOURCE)
-        subprocess.check_call([sys.executable, str(ROOT / "scripts" / "init_db.py")], cwd=ROOT)
+        if settings.DATA_SOURCE == "synthetic" and not (ROOT / "data" / "raw" / "events.csv").exists():
+            # Fresh clone: the generated CSVs are git-ignored, so make them (same seed = same data).
+            print("  ...  generating the full synthetic dataset (one-off, ~2-3 min)")
+            subprocess.check_call([sys.executable, "-m", "data_gen.generate", "--size", "full"], cwd=ROOT)
+        else:  # (the generator above already loads its CSVs into the DB)
+            subprocess.check_call([sys.executable, str(ROOT / "scripts" / "init_db.py")], cwd=ROOT)
         counts = table_counts()
     print(f"  [ok] data: DATA_SOURCE={settings.DATA_SOURCE}, level {get_data_level()}, "
           f"{counts['users']:,} users, {counts['products']:,} products, {counts['events']:,} events")
