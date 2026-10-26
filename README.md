@@ -90,7 +90,7 @@ Control Room (:8502), the Telegram bot and the 15-minute offer scheduler. `bash 
 does the same on macOS / Linux / Git Bash. Keys stay in `.env` (never committed); without a Claude
 key the system runs in mock mode, and without a Telegram token it runs without sending.
 
-Tests: `pytest` (whole suite, ~15 min) · Keys and troubleshooting: [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md) ·
+Tests: `pytest` (448 tests, ~5 min) · Keys and troubleshooting: [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md) ·
 Beginners: [docs/BEGINNER_GUIDE.md](docs/BEGINNER_GUIDE.md) · Project rules: [CLAUDE.md](CLAUDE.md)
 
 ## What's in the repo
