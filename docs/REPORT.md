@@ -1,6 +1,6 @@
 # Evaluation report — E-commerce Recommendation Engine (Parvaaz)
 
-_Phase 7 · 2026-10-23 · full synthetic data (`DATA_SOURCE=synthetic`, seed 42) unless stated otherwise._
+_Phase 7 · 2026-10-23, updated 2026-10-27 (reco re-evaluated, live Telegram + real Claude) · full synthetic data (`DATA_SOURCE=synthetic`, seed 42) unless stated otherwise._
 
 Every number below comes from a script you can re-run:
 
@@ -90,31 +90,32 @@ crashing. Reasons fall back to product IDs because L1 has no titles. A run on a 
 ## 3. Recommendation results
 
 Backtest on the untouched **test window (Sep 16–30)**, 1,000 sampled users, models trained on everything before it.
-"Relevant" = anything the user interacted with in the window. Full detail: `reco/results.md` (2,223 s run, 2,982 ranker training lists).
+"Relevant" = anything the user interacted with in the window. Full detail: `reco/results.md` (re-run 2026-10-27 after the post-purchase fix: 3,067 s, 2,981 ranker training lists).
 
 | Stage | Recall@10 | NDCG@10 | NDCG vs popularity | Coverage | Diversity | Pref-cat % | Sub-leak % |
 |---|---|---|---|---|---|---|---|
-| Popularity (baseline) | 0.167 | 0.152 | 1.00× | 1% | 0.97 | 13% | 4.4% |
-| Item-item CF | 0.300 | 0.299 | 1.97× | 13% | 0.25 | 89% | 17.4% |
-| ALS | 0.296 | 0.280 | 1.84× | 17% | 0.47 | 69% | 15.6% |
-| Content (TF-IDF) | 0.202 | 0.207 | 1.36× | 65% | 0.21 | 91% | 25.8% |
-| Merged candidates | 0.346 | 0.362 | 2.39× | 14% | 0.31 | 85% | 20.2% |
-| **LightGBM ranker** | **0.393** | **0.409** | **2.70×** | 28% | 0.35 | 83% | 22.4% |
-| Full pipeline (ranker + rules) | 0.234 | 0.253 | 1.67× | **36%** | **0.59** | 50% | **2.5%** |
+| Popularity (baseline) | 0.172 | 0.156 | 1.00× | 1% | 0.91 | 13% | 4.7% |
+| Item-item CF | 0.300 | 0.299 | 1.92× | 13% | 0.25 | 89% | 17.4% |
+| ALS | 0.297 | 0.280 | 1.80× | 17% | 0.46 | 69% | 15.6% |
+| Content (TF-IDF) | 0.202 | 0.207 | 1.33× | 65% | 0.20 | 91% | 25.8% |
+| Merged candidates | 0.347 | 0.361 | 2.32× | 14% | 0.30 | 85% | 20.2% |
+| **LightGBM ranker** | **0.394** | **0.411** | **2.64×** | 28% | 0.34 | 84% | 22.5% |
+| Full pipeline (ranker + rules) | 0.248 | 0.269 | 1.73× | **35%** | **0.58** | 52% | **2.9%** |
 
 How to read it:
 
-- **Every stage beats popularity; the ranker is best on raw accuracy (2.7× NDCG).**
+- **Every stage beats popularity; the ranker is best on raw accuracy (2.6× NDCG).**
 - **Ground-truth recovery:** item-CF and content put 89–91% of their recommendations in the user's *hidden*
   favourite categories (popularity: 13%). `get_complements` finds 46% of the true complement pairs in its top 10
   and returns **0.0% substitutes**; 34% of `get_similar` results are true substitutes.
 - **The business rules cost accuracy on purpose.** "Sub-leak" = recommending substitutes of something the user
-  already bought (a 2nd phone the week after buying one). The rules cut it from 22.4% to **2.5%**, while coverage
-  rises 28% → 36% and diversity 0.35 → 0.59. Ablation (one rule off at a time): hiding already-bought items is
-  the biggest "cost" (+0.068 NDCG if switched off) because shoppers keep re-viewing what they bought, which counts as
-  a "hit" offline but is useless as a recommendation; long-tail slots cost nothing (−0.001) and keep coverage at 36% instead of 22%.
-- **Cold-start users** (439 with no earlier history): the pipeline is at 0.89× popularity (NDCG 0.135 vs 0.152) —
-  with nothing to personalise on, diversity rules slightly hurt. A known weak spot (§8).
+  already bought (a 2nd phone the week after buying one). The rules cut it from 22.5% to **2.9%**, while coverage
+  rises 28% → 35% and diversity 0.34 → 0.58. Ablation (one rule off at a time): hiding already-bought items is
+  the biggest "cost" (+0.041 NDCG if switched off) because shoppers keep re-viewing what they bought, which counts as
+  a "hit" offline but is useless as a recommendation; long-tail slots cost almost nothing (+0.002) and keep coverage at 35% instead of 24%.
+- **Cold-start users** (439 with no earlier history): NDCG 0.143, the same as **in-stock** popularity; plain
+  popularity scores 0.154 (0.93×) only because new users also click sold-out bestsellers the store can't sell.
+  Was 0.135 before "shoppers like you" switched from age/gender to city tier.
 - Ranker's most-used features: price gap to the user's usual spend, user×item weight, item-CF score, user activity, category affinity.
 
 ## 4. Post-purchase intelligence & cold start (examples)
@@ -133,7 +134,13 @@ Full tables: `pipeline/report_examples.md` (run on a temp copy of the DB; ground
 own re-ranking hides true substitutes (similar-price phones) but its complement boost is too weak to lift covers
 into the top 8, and ₹1,000 keypad phones don't count as substitutes of a ₹46,000 phone (>4× price rule). The API's
 post-purchase layer fixes this for every user-facing list (storefront, `/recommend`), so the shopper sees the
-right thing; inside reco it is a tuning item for Phase 2 (`COMPLEMENT_BOOST`, noted in `phases/NOTES.md`).
+right thing.
+
+**Fixed inside reco (2026-10-27).** Root cause: the substitute rule (same leaf category + within 4× price) also hid
+covers and chargers from anyone who owned earbuds. Substitutes now also need the same kind of product; for 14 days
+after a purchase the whole leaf category is hidden at any price (except that purchase's complements); first-week
+complements get a bigger boost. U05835 after the purchase, reco engine alone: **0 phones, 3 accessories** (2 of them
+true complements). Full-pipeline NDCG rose 0.253 → 0.269 (§3). (The table above shows the run before the fix.)
 
 **Cold-start user** (U08992, signed up, no events): six "Popular with shoppers like you" items from six different
 categories (flip-flops, socks, screen guard, kurta, shampoo, atta) — popular-with-similar-demographics, kept diverse.
@@ -197,7 +204,7 @@ planted patterns (taste, price sensitivity, item match) — not real-world uplif
 
 ## 6. Guardrails
 
-**LLM guardrails — red team** (`python -m llm.redteam`, mock mode, full synthetic catalog):
+**LLM guardrails — red team** (`python -m llm.redteam`, **real Claude**, full synthetic catalog, 2026-10-26):
 **69/69 attacks blocked (100%)**, **0/14 false positives** on normal shopping questions.
 
 | Category | Blocked | | Category | Blocked |
@@ -211,7 +218,7 @@ planted patterns (taste, price sensitivity, item match) — not real-world uplif
 On the full catalog the first run scored 68/69: "Who won the cricket match yesterday?" got through because
 "cricket" is now a product word (cricket bats), which the off-topic rule treated as shopping intent. Fixed in Phase 7
 (`llm/guardrails.py` NEWS_PATTERNS: news/results questions need an explicit shopping word or price); "cricket bat
-under 2000", "ipl jersey price" and "any sale on cricket kits today" are still allowed. Not yet re-run with a real Claude key.
+under 2000", "ipl jersey price" and "any sale on cricket kits today" are still allowed. Re-run with a real Claude key: same result, 69/69 and 0/14.
 
 **Offer guardrails** (from the §5 evaluation, 1,500 triggers): 12,571 ranked candidate offers in, **3,194 kept (25%)**.
 
@@ -276,20 +283,28 @@ events) on every call — tens of seconds per pipeline run on full data. It now 
 
 ## 8. Limitations & future work
 
+**Verified since the first version of this report (2026-10-27)**
+
+- **Real Telegram:** @Sutlejbot runs with a real token and answers on a real phone. All 7 demo shoppers
+  (`bot/personas.py`) were run through the full pipeline (dry run, full data, real Claude): Claude chose the offer
+  (or "no discount" for the premium regular) and the rules checked it.
+- **Real Claude:** the red team was re-run with a key (69/69 blocked, 0/14 false positives, §6). An unreadable
+  chooser reply fell back to the rec engine's pick as designed.
+- **Post-purchase inside reco** and **cold start** were fixed (§3, §4).
+
 **Not verified yet**
 
-- **Real Telegram.** No `TELEGRAM_BOT_TOKEN` is configured, so delivery was tested with a fake bot behind the
-  real send queue (tests/integration). The live demo (`ui/DEMO.md`, "Full system with real Telegram") still has to be run once.
-- **Real Claude.** Everything ran in mock mode (no `ANTHROPIC_API_KEY`). The red team must be re-run with a key
-  (`python -m llm.redteam`); the template fallback is proven to work when Claude is down.
+- **Live uplift.** The 10% control group (`offers/rules.yaml`) is in place, but there are not yet enough real
+  sends to compare the groups.
 - **A real external dataset.** The external path was smoke-tested on the RetailRocket-format fixture, not on a downloaded dataset.
 
 **Limitations**
 
 - **Offer stacking starves the channel** (§6): one unused long-lived store-wide coupon blocks new offers for months.
-- **Post-purchase inside reco is weak** (§4): the storefront is right thanks to the API layer, but `get_recommendations`
-  alone keeps showing phones after a phone purchase. **Cold-start users** score slightly below plain popularity (§3).
-- **Win-back offers are expensive** (₹777 per incremental redemption, §5).
+  Demo shoppers are picked among users without such coupons.
+- **Win-back offers are expensive** (₹777 per incremental redemption, §5); the win-back starting discount can be
+  lowered in the Offer Control Room.
+- **Reward points** are not modelled yet (the `points` offer type exists in the contract, but there is no points balance).
 
 - Synthetic data: the response model used to compare offer strategies is the same one that generated the data,
   so §5 measures "does the engine exploit the patterns we planted", not real-world uplift. A live A/B test with a holdout is the real proof.
@@ -305,6 +320,7 @@ events) on every call — tens of seconds per pipeline run on full data. It now 
 **Future work**
 
 - Shared `user_prefs` / `user_feedback` tables; use "Not interested because…" as a training signal.
-- Back-testable reco (`now=` parameter) and an uplift model (send only when the offer changes behaviour, not to people who would buy anyway).
+- Back-testable reco (`now=` parameter) and a learned uplift model to replace today's "likely buyer" rule (which
+  already sends premium regulars a reminder instead of a discount).
 - Telegram webhook deployment, Postgres, a proper job queue; hot-reload models after the nightly retrain.
 - Multilingual offer wording (Hindi/Hinglish) and per-user best send time.
