@@ -823,7 +823,29 @@ PAGES = {
 }
 
 
+def password_ok() -> bool:
+    """Login gate for when the dashboard is reachable from the internet (e.g. a Cloudflare tunnel).
+    ADMIN_PASSWORD lives in .env only; empty = no login (local use)."""
+    import hmac
+    import os
+
+    expected = os.getenv("ADMIN_PASSWORD", "").strip()
+    if not expected or st.session_state.get("admin_ok"):
+        return True
+    hero(f"🛍️ {STORE_NAME} · Admin", "Please sign in")
+    with st.form("login"):
+        given = st.text_input("Admin password", type="password")
+        if st.form_submit_button("Sign in", type="primary"):
+            if hmac.compare_digest(given.encode(), expected.encode()):
+                st.session_state["admin_ok"] = True
+                st.rerun()
+            st.error("Wrong password.")
+    return False
+
+
 def main() -> None:
+    if not password_ok():
+        return
     rules.refresh_rules()
     with st.sidebar:
         st.markdown(f"## 🛍️ {STORE_NAME}")

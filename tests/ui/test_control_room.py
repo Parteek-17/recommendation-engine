@@ -7,6 +7,11 @@ import pytest
 pytest.importorskip("streamlit")
 from streamlit.testing.v1 import AppTest  # noqa: E402
 
+@pytest.fixture(autouse=True)
+def no_login(monkeypatch):
+    monkeypatch.delenv("ADMIN_PASSWORD", raising=False)  # the login gate is tested separately
+
+
 APP = str(Path(__file__).resolve().parents[2] / "ui" / "control_room.py")
 PAGES = ["🏠 Overview", "📊 Analytics", "🎁 Create offer", "📋 Offers", "🤖 Assistant", "📏 Offer rules", "📈 Results",
          "🧪 Demo testers"]
@@ -41,3 +46,16 @@ def test_create_offer_preview_follows_the_rules():
     assert any("Not allowed" in e.value for e in at.error)
     create = next(b for b in at.button if "Create offer" in b.label)
     assert create.disabled
+
+
+def test_password_gate_blocks_until_signed_in(monkeypatch):
+    monkeypatch.setenv("ADMIN_PASSWORD", "s3cret-test")
+    at = AppTest.from_file(APP, default_timeout=120)
+    at.run()
+    assert not at.sidebar.radio  # nothing but the login form
+    at.text_input[0].input("wrong")
+    at.button[0].click().run()
+    assert any("Wrong password" in e.value for e in at.error)
+    at.text_input[0].input("s3cret-test")
+    at.button[0].click().run()
+    assert at.sidebar.radio and not at.exception
