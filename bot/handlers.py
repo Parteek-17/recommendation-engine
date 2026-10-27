@@ -54,7 +54,7 @@ NOT_LINKED_TEXT = (
 )
 SORRY_TEXT = "Sorry, something went wrong on our side. Please try again in a minute."
 PERSONA_TEXT = (
-    "Welcome to the Parvaaz offer engine demo! 👋\n\n"
+    "Welcome to the Ecommerce Store offer demo! 👋\n\n"
     "Our shop's customers are synthetic, so pick a shopper to play. You'll take over their "
     "shopping history and get the offer our system would send them — chosen by AI, checked "
     "against the store's rules.\n\nWho do you want to be?"

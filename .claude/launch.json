@@ -21,9 +21,9 @@
         "uvicorn",
         "api.main:app",
         "--port",
-        "8000"
+        "8010"
       ],
-      "port": 8000
+      "port": 8010
     },
     {
       "name": "storefront",
@@ -54,6 +54,21 @@
         "true"
       ],
       "port": 8502
+    },
+    {
+      "name": "admin-preview",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": [
+        "-m",
+        "streamlit",
+        "run",
+        "ui/control_room.py",
+        "--server.port",
+        "8503",
+        "--server.headless",
+        "true"
+      ],
+      "port": 8503
     }
   ]
 }

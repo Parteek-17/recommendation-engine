@@ -95,7 +95,7 @@ DB_PATH=data/app.db
 DATA_SOURCE=sample              # sample → synthetic (after Phase 1) → external (real datasets, see docs/DATA_STANDARD.md)
 EXTERNAL_SOURCE=                # e.g. amazon_reviews_2023 when DATA_SOURCE=external
 OFFERS_API_URL=http://127.0.0.1:8001
-MAIN_API_URL=http://127.0.0.1:8000
+MAIN_API_URL=http://127.0.0.1:8010
 TIMEZONE=Asia/Kolkata           # used for quiet hours
 ```
 Guardrail limits (`MAX_DISCOUNT_PCT`, `MAX_OFFERS_PER_DAY`, `QUIET_START`, …) have safe defaults in `.env.example`.
@@ -113,7 +113,7 @@ Each service in its **own terminal** (venv activated in each):
 | What | Command | Open |
 |---|---|---|
 | Offers API | `uvicorn offers.api:app --port 8001` | http://127.0.0.1:8001/docs |
-| Main API | `uvicorn api.main:app --port 8000` | http://127.0.0.1:8000/docs |
+| Main API | `uvicorn api.main:app --port 8010` | http://127.0.0.1:8010/docs |
 | Telegram bot | `python -m bot.main` | your bot in Telegram |
 | Offer scheduler | `python -m pipeline.scheduler --dry-run` | prints what it would send |
 | Storefront UI | `streamlit run ui/app.py` | http://localhost:8501 |
@@ -148,7 +148,7 @@ After Phase 7: `.\scripts\run_all.ps1` starts everything at once. Stop any servi
 | Telegram `Conflict: terminated by other getUpdates request` | The same bot is running twice (another terminal or teammate). Stop the other one. |
 | Bot doesn't message a user | That user never pressed **Start**, pressed `/stop`, or blocked the bot. Also check quiet hours. |
 | Offers API returns `401` | `X-API-Key` header missing or `OFFERS_API_KEY` differs between services — restart services after editing `.env`. |
-| `[Errno 10048] address already in use` / port busy | Service already running elsewhere. Close it, or find it: `netstat -ano | findstr :8000` → `taskkill /PID <pid> /F`. |
+| `[Errno 10048] address already in use` / port busy | Service already running elsewhere. Close it, or find it: `netstat -ano | findstr :8010` → `taskkill /PID <pid> /F`. |
 | `database is locked` | Close DB Browser for SQLite (or other programs using `app.db`), then retry. |
 | Streamlit page doesn't open | Open http://localhost:8501 manually; allow Python through Windows Firewall if asked. |
 | Quiet hours wrong | Check `TIMEZONE=Asia/Kolkata` in `.env`. |

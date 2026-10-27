@@ -18,10 +18,10 @@ This API is the single door to the recommendation system. It:
 ## Run it
 
 ```bash
-uvicorn api.main:app --port 8000 --reload
+uvicorn api.main:app --port 8010 --reload
 ```
 
-Then open **http://127.0.0.1:8000/docs** — FastAPI builds interactive docs where you can
+Then open **http://127.0.0.1:8010/docs** — FastAPI builds interactive docs where you can
 try every endpoint with a "Try it out" button.
 
 ## Endpoints

@@ -5,9 +5,9 @@
 #
 # What starts (close a window to stop that service):
 #   Offers API  http://127.0.0.1:8001/docs   (uvicorn offers.api:app)
-#   Main API    http://127.0.0.1:8000/docs   (uvicorn api.main:app)
+#   Main API    http://127.0.0.1:8010/docs   (uvicorn api.main:app)
 #   Storefront  http://localhost:8501        (streamlit run ui/app.py)
-#   Control room http://localhost:8502       (streamlit run ui/control_room.py) - offer rules + results
+#   Admin        http://localhost:8502       (streamlit run ui/control_room.py) - offers, assistant, rules, results
 #   Telegram bot                             (python -m bot.main, only if TELEGRAM_BOT_TOKEN is set)
 #   Scheduler   offer round every 15 min     (python -m pipeline.scheduler)
 
@@ -42,10 +42,10 @@ function Start-Window($Title, $Command) {
 Write-Host ""
 Write-Host "Starting services..."
 Start-Window "Offers API :8001" "-m uvicorn offers.api:app --port 8001"
-Start-Window "Main API :8000"   "-m uvicorn api.main:app --port 8000"
+Start-Window "Main API :8010"   "-m uvicorn api.main:app --port 8010"
 
 # Wait until both APIs answer before starting the things that call them.
-foreach ($url in @("http://127.0.0.1:8001/health", "http://127.0.0.1:8000/health")) {
+foreach ($url in @("http://127.0.0.1:8001/health", "http://127.0.0.1:8010/health")) {
     $ok = $false
     for ($i = 0; $i -lt 90 -and -not $ok; $i++) {
         try { Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 $url | Out-Null; $ok = $true } catch { Start-Sleep -Seconds 1 }
@@ -54,7 +54,7 @@ foreach ($url in @("http://127.0.0.1:8001/health", "http://127.0.0.1:8000/health
 }
 
 Start-Window "Storefront :8501" "-m streamlit run ui/app.py --server.port 8501 --server.headless true"
-Start-Window "Control room :8502" "-m streamlit run ui/control_room.py --server.port 8502 --server.headless true"
+Start-Window "Admin dashboard :8502" "-m streamlit run ui/control_room.py --server.port 8502 --server.headless true"
 
 $BotState = "skipped (no TELEGRAM_BOT_TOKEN in .env)"
 if ($NoBot) { $BotState = "skipped (-NoBot)" }
@@ -69,9 +69,9 @@ if (-not $NoScheduler) {
 Write-Host ""
 Write-Host "================ What's running where ================" -ForegroundColor Cyan
 Write-Host ("  Offers API    http://127.0.0.1:8001/docs   (needs X-API-Key)")
-Write-Host ("  Main API      http://127.0.0.1:8000/docs   (/health shows real vs stub modules)")
+Write-Host ("  Main API      http://127.0.0.1:8010/docs   (/health shows real vs stub modules)")
 Write-Host ("  Storefront    http://localhost:8501")
-Write-Host ("  Control room  http://localhost:8502   (offer rules, results, demo testers)")
+Write-Host ("  Admin         http://localhost:8502   (create offers, assistant, rules, results)")
 Write-Host ("  Telegram bot  $BotState")
 Write-Host ("  Scheduler     $SchedState")
 Write-Host "======================================================" -ForegroundColor Cyan

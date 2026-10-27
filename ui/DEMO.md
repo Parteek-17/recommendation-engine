@@ -7,14 +7,14 @@ python scripts/init_db.py --fresh
 ```
 
 ```bash
-uvicorn api.main:app --port 8000
+uvicorn api.main:app --port 8010
 ```
 
 ```bash
 streamlit run ui/app.py
 ```
 
-The storefront opens at http://localhost:8501. Keep http://127.0.0.1:8000/docs open in a second tab
+The storefront opens at http://localhost:8501. Keep http://127.0.0.1:8010/docs open in a second tab
 if the audience is technical. The sidebar shows which modules are **real** and which are still **stubs**.
 
 > `init_db.py --fresh` resets the demo (it reloads the data, so your demo purchases disappear).

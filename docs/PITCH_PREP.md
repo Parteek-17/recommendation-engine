@@ -1,4 +1,4 @@
-# Pitch prep: Parvaaz Personalised Offer Engine
+# Pitch prep: Ecommerce Store Personalised Offer Engine
 
 Read this the night before. Practise the pitch out loud with a timer, then have a friend fire the
 questions in section 4 at you in random order. Every answer is short on purpose: say the first
@@ -12,7 +12,7 @@ sentence, stop, and let them ask for more.
 |---|---|---|
 | **Core functionality**: offers stay within limits, reach classmates | Guardrails + re-check before send, 7 demo shoppers on @Sutlejbot, 448 tests | Bot must be **up** during judging |
 | **Data realism** | 10k users, 1.04M events, planted taste / price comfort / long tail / funnel / repurchase / sale spike / gifting / cold start | They'll ask "how do you know it's realistic?" |
-| **Usability** for marketing | Control Room :8502, sliders, live example, `rules.yaml` validated | Strong. Show it live. |
+| **Usability** for marketing | Admin dashboard :8502, sliders, live example, `rules.yaml` validated | Strong. Show it live. |
 | **Design** of messages + results | Claude writes the wording; codes/prices filled from DB; Results page | Show one real message on your phone |
 | **Advanced functionality** | AI chooses + rules overrule, control group, "would buy anyway" → reminder, post-purchase complements, no gender guessing | Strong |
 | **Relevance** (business sense) | Cost per extra purchase, profit floor, daily budget, approval above ₹1,000 | Reward points not built (be ready) |
@@ -34,7 +34,7 @@ sentence, stop, and let them ask for more.
 > *what* offer, it's *who* should get one at all, and which one."
 
 **0:20 – What we built (30 s)**
-> "Parvaaz watches what shoppers do: a cart left behind, groceries running out, a phone just bought,
+> "Our engine watches what shoppers do: a cart left behind, groceries running out, a phone just bought,
 > a wishlist item getting cheaper, someone going quiet. For each moment it decides: send nothing,
 > send a reminder, or send one specific offer. The offer arrives on Telegram."
 
@@ -61,7 +61,7 @@ sentence, stop, and let them ask for more.
 
 ## 3. Demo run sheet
 
-Open **before** you start: Telegram on your phone (screen mirrored if possible), Control Room
+Open **before** you start: Telegram on your phone (screen mirrored if possible), Admin dashboard
 (`localhost:8502`) in a browser tab.
 
 1. **Phone:** `/start` on @Sutlejbot → pick **🎓 Budget student**. Read out the offer
@@ -69,12 +69,15 @@ Open **before** you start: Telegram on your phone (screen mirrored if possible),
    which rules it passed.
 2. **Phone:** `/switch` → **💎 Premium regular**. Point out: *no discount, just a reminder.*
    "This person buys every month anyway, so a coupon would only cost us money."
-3. **Control Room → 📏 Offer rules:** drag *max discount* from 40 to 15 and show the live example
+3. **Admin dashboard → 📏 Offer rules:** drag *max discount* from 40 to 15 and show the live example
    change **before** saving. "A marketing person can do this; a typo can't switch a limit off."
-4. **Control Room → 📈 Results:** the strategy chart and "Claude accepted vs overruled".
+4. **Admin dashboard → 📈 Results:** the strategy chart and "Claude accepted vs overruled".
+5. **Admin dashboard → 🤖 Assistant:** click *"Make a 15% festival offer on Footwear…"*. Claude drafts it,
+   the rules check it, and you press **Create offer**. Then ask for 70% off: the rules refuse it, not Claude.
+   "Even our own admin chatbot can only propose. The rules decide."
 
 **If the bot is slow or down:** say "it's calling Claude live, this takes a few seconds", and if
-it really fails, switch to the Control Room's 🧪 Demo testers page, which shows what each tester
+it really fails, switch to the Admin dashboard's 🧪 Demo testers page, which shows what each tester
 received. Never debug live.
 
 ---
@@ -109,7 +112,7 @@ whether it's earning its place.
 
 **Q: How do you stop spamming people?**
 Max 1 offer per day, 3 per week, quiet hours 22:00–08:00, and they must have pressed Start (opt-in).
-`/stop` opts out. All of these are adjustable in the Control Room.
+`/stop` opts out. All of these are adjustable in the Admin dashboard.
 
 **Q: What's "stacking"?**
 Two coupons that could be used on the same purchase. We block a new offer if the customer already
@@ -137,6 +140,17 @@ control group: run it live and compare who got offers with who didn't. The syste
 datasets (RetailRocket, Amazon) through one standard format, if anyone wants to test on real data.
 
 ### Usability
+
+**Q: How does a marketing person make an offer?**
+Two ways. The 🎁 Create offer page has three steps (what kind, on what, for whom). Products are found by
+name, and a live coupon preview and rule check update as they type. Or they ask the 🤖 Assistant in plain
+English. Both go through the same rule check (`offers/manual.py`), an offer that breaks a rule can't
+be saved, and big ones wait for a manager's OK on the 📋 Offers page.
+
+**Q: What can the admin assistant do? Isn't it risky?**
+It answers daily questions (sales, approvals, blocked offers, best sellers, rules) with read-only
+database tools, and can *draft* offers. It can't save, approve, change rules, message customers or see
+keys. Every number comes from a tool. Without Claude, a simple keyword version answers from the same tools.
 
 **Q: Could a marketing person really use this without help?**
 Show it. Every rule is a slider with a plain-English label, and a live example shows the effect before
@@ -199,7 +213,7 @@ balance column, not a redesign. It was the next item on our list.
 
 **Q: Win-back looked expensive.**
 Yes, ₹777 per extra purchase, because lapsed customers need bigger nudges. That's a business choice:
-marketing can lower the win-back starting discount in the Control Room in five seconds.
+marketing can lower the win-back starting discount in the Admin dashboard in five seconds.
 
 ### Engineering
 
@@ -246,4 +260,4 @@ and a job queue. The design (stateless pipeline steps with an audit log) carries
 - **"Our engine is proven to work."** Say "in simulation on our data". Claim real uplift only from the control group.
 - **"The AI decides."** Say "the AI chooses, the rules decide".
 - **"Half the cost"** without "versus biggest discount". Against the generic offer it's the same cost with twice the extra sales.
-- Don't read code on screen. Show the bot, the Control Room and one audit row at most.
+- Don't read code on screen. Show the bot, the Admin dashboard and one audit row at most.

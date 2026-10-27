@@ -1,8 +1,8 @@
-# Parvaaz — Personalised Offer Engine
+# Ecommerce Store — Personalised Offer Engine
 
 **Which offer should each customer get, and when?** A discount that wins back a customer
 who is about to leave is worth it. The same discount sent to someone who would buy anyway
-is lost profit. Parvaaz decides who gets which offer for an Indian online marketplace and
+is lost profit. This system decides who gets which offer for an Indian online marketplace and
 delivers it on **Telegram: [@Sutlejbot](https://t.me/Sutlejbot)**.
 
 > **Try it:** open [@Sutlejbot](https://t.me/Sutlejbot), press **Start**, and pick a shopper to play.
@@ -47,10 +47,19 @@ the rec engine's pick and a plain template are used, so the customer still gets 
 `/switch` picks another shopper. Organisers can push a fresh round to every tester with
 `python -m pipeline.demo_round` (add `--dry-run` to only preview it).
 
-## For the marketing team: the Offer Control Room
+## For the marketing team: the Admin dashboard
 
 `http://localhost:8502` (started by `run_all`). No code needed:
 
+- **🏠 Overview**: today's numbers, what needs attention, one-click actions.
+- **🎁 Create offer**: three steps (what kind, on what, for whom). Products are found by name, a coupon
+  preview and the rule check update as you type, and an offer that breaks a rule can't be saved.
+  Big offers wait for a manager's OK.
+- **📋 Offers**: approve or reject offers waiting for an OK, see what's live and how often it was used,
+  switch offers off.
+- **🤖 Assistant**: ask daily questions in plain English ("how did offers do this week?", "why were
+  offers blocked?", "best sellers in Footwear") or ask for an offer. It answers from the database with
+  read-only tools and can only *draft* offers: the same rules check them, and you press **Create offer**.
 - **📏 Offer rules**: sliders for every limit (maximum discount, profit floor, offers per week,
   quiet hours, discount per reason, shopper-type multipliers, the "would buy anyway" rule,
   control group size, whether Claude may choose). A live example shows what a change does
@@ -85,8 +94,8 @@ powershell -ExecutionPolicy Bypass -File scripts\run_all.ps1   # 5. start everyt
 ```
 
 `run_all` first runs `scripts/preflight.py`: it loads the data, trains the models and prepares the
-demo shoppers if needed, then starts the Offers API (:8001), Main API (:8000), Storefront (:8501),
-Control Room (:8502), the Telegram bot and the 15-minute offer scheduler. `bash scripts/run_all.sh`
+demo shoppers if needed, then starts the Offers API (:8001), Main API (:8010), Storefront (:8501),
+Admin dashboard (:8502), the Telegram bot and the 15-minute offer scheduler. `bash scripts/run_all.sh`
 does the same on macOS / Linux / Git Bash. Keys stay in `.env` (never committed); without a Claude
 key the system runs in mock mode, and without a Telegram token it runs without sending.
 
@@ -100,7 +109,7 @@ Beginners: [docs/BEGINNER_GUIDE.md](docs/BEGINNER_GUIDE.md) · Project rules: [C
 | `data_gen/`, `ingest/` | synthetic data generator · adapters for real datasets |
 | `reco/` | recommendations: popularity, item-CF, ALS, content → LightGBM ranker → re-ranking |
 | `offers/` | Offer Engine, Offers API (key-protected), eligibility, guardrails, **rules.yaml** |
-| `llm/` | Claude: offer **chooser**, offer **writer**, shopping chat agent, input/output guardrails |
+| `llm/` | Claude: offer **chooser**, offer **writer**, shopping chat agent, **admin assistant**, guardrails |
 | `bot/` | Telegram bot, demo shoppers (`personas.py`), send queue, buttons → events |
 | `pipeline/` | triggers, the offer pipeline, scheduler, evaluation, `demo_round` |
-| `api/`, `ui/` | Main API · Storefront (8501) · **Offer Control Room (8502)** |
+| `api/`, `ui/` | Main API · Storefront (8501) · **Admin dashboard (8502)** |

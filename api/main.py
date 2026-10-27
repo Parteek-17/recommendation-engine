@@ -3,8 +3,8 @@
 What is an API?  A program that answers requests over HTTP. The storefront asks
 "GET /recommend/U00001" and gets JSON back. Each URL + method is an *endpoint*.
 
-Run it:   uvicorn api.main:app --port 8000 --reload
-Try it:   http://127.0.0.1:8000/docs   (FastAPI writes interactive docs for every endpoint)
+Run it:   uvicorn api.main:app --port 8010 --reload
+Try it:   http://127.0.0.1:8010/docs   (FastAPI writes interactive docs for every endpoint)
 
 Endpoints are thin: they validate input (pydantic), call reco / llm / bot / pipeline
 (real module or stub, see api/modules.py), and add product details for the UI.

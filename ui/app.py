@@ -3,7 +3,7 @@
 What is a frontend?  The part people see and click. This file draws the pages; every
 piece of data comes from the Main API (backend) over HTTP — see ui/api_client.py.
 
-Run:   uvicorn api.main:app --port 8000      (first, in one terminal)
+Run:   uvicorn api.main:app --port 8010      (first, in one terminal)
        streamlit run ui/app.py              (then, in a second terminal)
 
 Every view / click / cart action is sent to POST /events, so the system learns live.
@@ -25,7 +25,7 @@ from common.logging_utils import now_local  # noqa: E402
 from ui import api_client as api  # noqa: E402
 from ui.api_client import ApiError  # noqa: E402
 
-st.set_page_config(page_title="Parvaaz Store", page_icon="🛍️", layout="wide")
+st.set_page_config(page_title="Ecommerce Store", page_icon="🛍️", layout="wide")
 
 PAGES = ["🏠 Home", "📦 Product", "🛒 Cart", "🎛️ My controls", "💬 Chat", "📊 Admin / Insights"]
 NOT_INTERESTED = {
@@ -180,7 +180,7 @@ def product_row(items: list[dict], source: str, key: str, per_row: int = 5, allo
 
 
 def page_home(user_id: str) -> None:
-    st.title("🛍️ Parvaaz Store")
+    st.title("🛍️ Ecommerce Store")
     profile = safe(api.get, f"/users/{user_id}/profile")
     if profile:
         st.caption(" ".join(profile["summary"]))
@@ -454,13 +454,13 @@ def load_users() -> list[dict]:
 def main() -> None:
     init_state()
     with st.sidebar:
-        st.header("Parvaaz Store")
+        st.header("Ecommerce Store")
         try:
             health = api.get("/health")
             users = load_users()
         except ApiError as exc:
             st.error(str(exc))
-            st.code("uvicorn api.main:app --port 8000", language="bash")
+            st.code("uvicorn api.main:app --port 8010", language="bash")
             st.stop()
 
         labels = {u["user_id"]: f"{u['user_id']} · {u['city']} · {u['age_group']}"

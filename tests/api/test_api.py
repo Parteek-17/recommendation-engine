@@ -265,8 +265,10 @@ def test_admin_triggers_and_run_offer(client):
     found = client.get("/admin/triggers?now=2026-09-30T12:00:00").json()
     assert {"user_id": "U00004", "trigger_type": "cart_abandon"} in found
     res = client.post("/admin/run_offer", json={"user_id": "U00001", "trigger_type": "cart_abandon"}).json()
-    # No Offers API / Telegram in tests, so it can't be "sent"; any safe stop is fine.
-    assert res["status"] in {"sent", "blocked", "no_offer", "failed", "offers_api_down", "guardrail_blocked"}
+    # No Offers API / Telegram in tests, so it can't be "sent"; any safe stop is fine
+    # (U00001 falls in the 10% control group whenever rules.yaml's control_group_pct is loaded).
+    assert res["status"] in {"sent", "blocked", "no_offer", "failed", "offers_api_down", "guardrail_blocked",
+                             "holdout", "reminder_sent"}
 
 
 def test_cache_invalidated_by_event(client):
