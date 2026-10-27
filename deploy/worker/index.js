@@ -1,19 +1,28 @@
 // Cloudflare Worker: a permanent public address for the Admin dashboard.
 //
-//   https://quiet-sun-08f8.parteeksharma2006.workers.dev  ->  current trycloudflare.com tunnel  ->  laptop :8502
+//   https://quiet-sun-08f8.parteeksharma2006.workers.dev  ->  TUNNEL_URL
 //
-// The quick tunnel's address changes on every restart; only TUNNEL_URL (a Worker variable)
-// needs updating, so the workers.dev link people have stays the same.
-// It redirects instead of proxying: Streamlit's live WebSocket does not survive being proxied
-// through a Worker to a quick tunnel. The dashboard's own password (ADMIN_PASSWORD) protects it.
+// TUNNEL_URL is where the dashboard runs: the Render service (https://<name>.onrender.com) or a
+// trycloudflare.com tunnel to a laptop/VM. Change only that variable; the workers.dev link stays.
+// It redirects instead of proxying: Streamlit's live WebSocket does not survive being proxied.
+//
+// Keep-awake: Render's free plan sleeps after ~15 min without visits, which would also stop the
+// Telegram bot. A Cron Trigger (Worker → Settings → Triggers → "*/10 * * * *") calls scheduled()
+// every 10 minutes and pings the health check, so it never sleeps.
 
 export default {
   async fetch(request, env) {
     if (!env.TUNNEL_URL) {
-      return new Response("The dashboard is offline (no tunnel configured).", { status: 503 });
+      return new Response("The dashboard is offline (no address configured).", { status: 503 });
     }
     const incoming = new URL(request.url);
     const target = new URL(incoming.pathname + incoming.search, env.TUNNEL_URL);
     return Response.redirect(target.toString(), 302);
+  },
+
+  async scheduled(event, env, ctx) {
+    if (env.TUNNEL_URL) {
+      ctx.waitUntil(fetch(new URL("/_stcore/health", env.TUNNEL_URL)).catch(() => {}));
+    }
   },
 };

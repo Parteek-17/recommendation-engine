@@ -1,0 +1,35 @@
+# Render blueprint (free plan): Render → New → Blueprint → pick this repo.
+# One web service runs the whole store; see deploy/render/ and docs/DEPLOY_RENDER.md.
+services:
+  - type: web
+    name: ecommerce-store-admin
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash deploy/render/start.sh
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: DATA_SOURCE
+        value: synthetic
+      - key: TIMEZONE
+        value: Asia/Kolkata
+      - key: OFFERS_API_URL
+        value: http://127.0.0.1:8001
+      - key: CLAUDE_MODEL_FAST
+        value: claude-haiku-5-5
+      - key: CLAUDE_MODEL_SMART
+        value: claude-sonnet-5-5
+      - key: TELEGRAM_BOT_USERNAME
+        value: Sutlejbot
+      - key: OFFERS_API_KEY          # internal password between pipeline and Offers API
+        generateValue: true
+      # Secrets: Render asks you for these when you create the blueprint (never in git).
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

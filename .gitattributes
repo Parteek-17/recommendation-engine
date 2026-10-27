@@ -1,3 +1,5 @@
 # Linux deployment files must keep LF line endings (bash and systemd break on CRLF).
 *.sh text eol=lf
 *.service text eol=lf
+*.gz binary
+*.pkl binary
