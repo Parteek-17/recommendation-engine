@@ -1,0 +1,7 @@
+# Cloudflare Worker that gives the Admin dashboard a permanent workers.dev address.
+# Deploy / repoint:  powershell -ExecutionPolicy Bypass -File scripts\update_worker.ps1
+name = "ecommerce-admin"
+main = "index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+# TUNNEL_URL is passed at deploy time (it changes whenever the quick tunnel restarts).
