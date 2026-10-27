@@ -25,16 +25,19 @@ log = get_logger("render")
 
 
 def start_offers_api() -> None:
-    """Offers API on 127.0.0.1:8001 in a background thread (only the pipeline calls it)."""
+    """Offers API in a background thread, on the port of OFFERS_API_URL (only the pipeline calls it)."""
+    from urllib.parse import urlparse
+
     import uvicorn
 
     from offers.api import app
 
-    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=8001, log_level="warning"))
+    port = urlparse(settings.OFFERS_API_URL).port or 8001
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
     threading.Thread(target=server.run, name="offers-api", daemon=True).start()
     for _ in range(60):  # the pipeline needs it before the first offer round
         if server.started:
-            log.info("Offers API ready on :8001")
+            log.info("Offers API ready on :%s", port)
             return
         time.sleep(0.5)
     log.warning("Offers API did not report ready after 30 s")
