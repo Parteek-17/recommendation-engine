@@ -1,0 +1,15 @@
+[Unit]
+Description=Ecommerce Store: Main API (:8010)
+After=network-online.target 
+Wants=network-online.target
+
+[Service]
+User=__USER__
+WorkingDirectory=__APP__
+Environment=PYTHONUNBUFFERED=1
+ExecStart=__APP__/.venv/bin/python -m uvicorn api.main:app --host 127.0.0.1 --port 8010
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

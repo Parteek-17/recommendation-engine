@@ -1,0 +1,15 @@
+[Unit]
+Description=Ecommerce Store: offer scheduler (every 15 min)
+After=network-online.target store-offers-api.service store-main-api.service
+Wants=network-online.target
+
+[Service]
+User=__USER__
+WorkingDirectory=__APP__
+Environment=PYTHONUNBUFFERED=1
+ExecStart=__APP__/.venv/bin/python -m pipeline.scheduler
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
