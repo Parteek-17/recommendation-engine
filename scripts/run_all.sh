@@ -57,7 +57,6 @@ start offers_api -m uvicorn offers.api:app --port 8001
 start main_api -m uvicorn api.main:app --port 8010
 wait_for http://127.0.0.1:8001/health
 wait_for http://127.0.0.1:8010/health
-start storefront -m streamlit run ui/app.py --server.port 8501 --server.headless true
 start control_room -m streamlit run ui/control_room.py --server.port 8502 --server.headless true
 
 BOT_STATE="skipped (no TELEGRAM_BOT_TOKEN in .env)"
@@ -75,7 +74,6 @@ cat <<EOF
 ================ What's running where ================
   Offers API    http://127.0.0.1:8001/docs   (needs X-API-Key)
   Main API      http://127.0.0.1:8010/docs   (/health shows real vs stub modules)
-  Storefront    http://localhost:8501
   Admin         http://localhost:8502   (create offers, assistant, rules, results)
   Telegram bot  $BOT_STATE
   Scheduler     $SCHED_STATE

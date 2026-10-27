@@ -4,6 +4,7 @@
 
 Pages, written for people who don't code:
   🏠 Overview        today's numbers, what needs attention, quick links
+  📊 Analytics       sales, customers, shopping funnel, offer funnel and a searchable offer log
   🎁 Create offer    pick what / on what / for whom; a live preview and the rule check update as you go
   📋 Offers          offers waiting for a manager's OK (approve / reject), live offers, switch offers off
   🤖 Assistant       ask daily questions in plain English; it can also draft offers for you
@@ -654,8 +655,165 @@ def page_assistant() -> None:
         st.rerun()
 
 
+# ---------------------------------------------------------------------------
+# 📊 Analytics
+# ---------------------------------------------------------------------------
+
+BLUE = "#2a6fdb"
+OFFER_STAGES = [("Delivered", ("sent", "opened", "clicked", "redeemed")), ("Opened", ("opened", "clicked", "redeemed")),
+                ("Clicked", ("clicked", "redeemed")), ("Used the coupon", ("redeemed",))]
+
+
+@st.cache_data(ttl=300, show_spinner="Crunching the numbers…")
+def _sales() -> dict:
+    """Store-wide aggregates (cached 5 min: the events table has ~1M rows)."""
+    out = {
+        "kpi": query("SELECT COUNT(*) AS orders, ROUND(SUM(total_amount)) AS revenue, "
+                     "ROUND(AVG(total_amount)) AS aov, COUNT(DISTINCT user_id) AS buyers FROM orders"),
+        "repeat": query("SELECT COUNT(*) AS repeaters FROM (SELECT user_id FROM orders GROUP BY user_id "
+                        "HAVING COUNT(*) > 1)"),
+        "monthly": query("SELECT substr(order_date, 1, 7) AS month, ROUND(SUM(total_amount) / 100000.0, 1) "
+                         "AS revenue_lakh, COUNT(*) AS orders FROM orders GROUP BY month ORDER BY month"),
+        "category": query(
+            "SELECT COALESCE(top.name, c.name) AS category, ROUND(SUM(oi.quantity * oi.price_paid) / 100000.0, 1) "
+            "AS revenue_lakh FROM order_items oi JOIN products p ON p.product_id = oi.product_id "
+            "JOIN categories c ON c.category_id = p.category_id "
+            "LEFT JOIN categories top ON top.category_id = c.parent_id GROUP BY 1 ORDER BY 2 DESC"),
+        # Orders are grouped per customer first: joining 30k orders to users row by row is slow.
+        "tier": query("SELECT 'Tier ' || u.city_tier AS city_tier, COUNT(*) AS buyers FROM "
+                      "(SELECT DISTINCT user_id FROM orders) b JOIN users u ON u.user_id = b.user_id "
+                      "GROUP BY u.city_tier ORDER BY u.city_tier"),
+        "age": query("SELECT u.age_group AS age_group, COUNT(DISTINCT o.user_id) AS buyers FROM orders o "
+                     "JOIN users u ON u.user_id = o.user_id GROUP BY u.age_group ORDER BY u.age_group"),
+        "funnel": query("SELECT event_type, COUNT(DISTINCT session_id) AS sessions FROM events "
+                        "WHERE event_type IN ('view', 'add_to_cart', 'purchase') GROUP BY event_type"),
+        "top": query("SELECT p.title AS product, SUM(oi.quantity) AS units, "
+                     "ROUND(SUM(oi.quantity * oi.price_paid)) AS revenue_inr, p.stock_qty AS in_stock "
+                     "FROM order_items oi JOIN products p ON p.product_id = oi.product_id "
+                     "GROUP BY p.product_id ORDER BY revenue_inr DESC LIMIT 10"),
+    }
+    return out
+
+
+def _offer_stats() -> dict:
+    """Offer sends (small table, not cached so new Telegram activity shows at once)."""
+    sends = query("SELECT trigger_type, status, sent_at FROM offer_sends")
+    return {"sends": sends}
+
+
+def page_analytics() -> None:
+    hero("📊 Analytics", "Sales, customers and offers at a glance")
+    s = _sales()
+    k = s["kpi"].iloc[0] if not s["kpi"].empty else None
+    if k is None or not k["orders"]:
+        st.info("No orders in the database yet.")
+        return
+    repeaters = int(s["repeat"]["repeaters"].iloc[0]) if not s["repeat"].empty else 0
+    c = st.columns(5)
+    c[0].metric("Revenue", f"₹{k['revenue'] / 1e7:,.2f} Cr")
+    c[1].metric("Orders", f"{int(k['orders']):,}")
+    c[2].metric("Average order", f"₹{k['aov']:,.0f}")
+    c[3].metric("Customers who bought", f"{int(k['buyers']):,}")
+    c[4].metric("Bought more than once", f"{100 * repeaters / k['buyers']:.0f}%")
+    st.caption("Store history: Apr–Sep 2026 (synthetic data). Offers sent from 1 Oct are live.")
+
+    tab_sales, tab_customers, tab_offers, tab_log = st.tabs(
+        ["💰 Sales", "👥 Customers", "🎁 Offers", "📜 Offer log"])
+
+    with tab_sales:
+        left, right = st.columns(2, gap="large")
+        with left:
+            st.markdown("**Revenue per month (₹ lakh)**")
+            st.bar_chart(s["monthly"], x="month", y="revenue_lakh", color=BLUE, height=280, x_label="", y_label="₹ lakh")
+            st.caption("The August spike is the Independence Day sale.")
+        with right:
+            st.markdown("**Revenue by category (₹ lakh)**")
+            st.bar_chart(s["category"], x="category", y="revenue_lakh", color=BLUE, horizontal=True, height=280,
+                         x_label="₹ lakh", y_label="", sort="-revenue_lakh")
+        st.markdown("**Top 10 products by revenue**")
+        st.dataframe(s["top"], hide_index=True, use_container_width=True, column_config={
+            "revenue_inr": st.column_config.NumberColumn("revenue (₹)", format="₹%d"),
+            "product": st.column_config.TextColumn(width="large")})
+
+    with tab_customers:
+        left, right = st.columns(2, gap="large")
+        with left:
+            st.markdown("**Shopping funnel (sessions)**")
+            f = dict(zip(s["funnel"]["event_type"], s["funnel"]["sessions"]))
+            steps = [("Viewed a product", f.get("view", 0)), ("Added to cart", f.get("add_to_cart", 0)),
+                     ("Bought", f.get("purchase", 0))]
+            cols = st.columns(3)
+            for i, (col, (name, n)) in enumerate(zip(cols, steps)):
+                prev = steps[i - 1][1] if i else None
+                col.metric(name, f"{n:,}", f"{100 * n / prev:.0f}% of previous" if prev else None, delta_color="off")
+            st.caption("Most shoppers drop off between viewing and adding to cart: that's what cart and "
+                       "price-drop offers try to win back.")
+        with right:
+            st.markdown("**Buyers by city tier**")
+            st.bar_chart(s["tier"], x="city_tier", y="buyers", color=BLUE, height=220, x_label="", y_label="buyers")
+        st.markdown("**Buyers by age group**")
+        st.bar_chart(s["age"], x="age_group", y="buyers", color=BLUE, height=220, x_label="age", y_label="buyers")
+
+    with tab_offers:
+        sends = _offer_stats()["sends"]
+        live_only = st.toggle("Live Telegram offers only (since 1 Oct)", value=False)
+        if not sends.empty and live_only:
+            sends = sends[sends["sent_at"].fillna("") >= LIVE_FROM]
+        if sends.empty:
+            st.info("No offers sent yet.")
+        else:
+            st.markdown("**Offer funnel**")
+            cols = st.columns(len(OFFER_STAGES) + 1)
+            prev = None
+            for col, (name, statuses) in zip(cols, OFFER_STAGES):
+                n = int(sends["status"].isin(statuses).sum())
+                col.metric(name, f"{n:,}", f"{100 * n / prev:.0f}% of previous" if prev else None, delta_color="off")
+                prev = n or None
+            cols[-1].metric("Stopped by the rules", int((sends["status"] == "blocked").sum()))
+            delivered = sends[sends["status"].isin(OFFER_STAGES[0][1])]
+            if not delivered.empty:
+                by = delivered.assign(used=delivered["status"] == "redeemed").groupby("trigger_type").agg(
+                    delivered=("status", "size"), used=("used", "sum")).reset_index()
+                by["use rate %"] = (100 * by["used"] / by["delivered"]).round(1)
+                by["reason"] = by["trigger_type"].map(TRIGGER_LABELS).fillna(by["trigger_type"])
+                st.markdown("**Coupon use rate by reason (%)**")
+                st.bar_chart(by, x="reason", y="use rate %", color=BLUE, horizontal=True, height=260,
+                             x_label="% of delivered offers used", y_label="", sort="-use rate %")
+                st.dataframe(by[["reason", "delivered", "used", "use rate %"]], hide_index=True,
+                             use_container_width=True)
+            st.button("📈 Is it worth the money? See Results", on_click=go_to, args=("📈 Results",))
+
+    with tab_log:
+        f1, f2, f3 = st.columns(3)
+        status = f1.selectbox("Status", ["All", "sent", "opened", "clicked", "redeemed", "blocked", "failed", "queued"])
+        trigger = f2.selectbox("Reason", ["All"] + list(TRIGGER_LABELS),
+                               format_func=lambda t: TRIGGER_LABELS.get(t, t))
+        user = f3.text_input("Customer ID", placeholder="e.g. U00001").strip().upper()
+        where, params = ["1 = 1"], []
+        if status != "All":
+            where.append("s.status = ?")
+            params.append(status)
+        if trigger != "All":
+            where.append("s.trigger_type = ?")
+            params.append(trigger)
+        if user:
+            where.append("s.user_id = ?")
+            params.append(user)
+        log = query("SELECT s.sent_at, s.user_id, s.trigger_type, s.status, o.code, s.message "
+                    "FROM offer_sends s LEFT JOIN offers o ON o.offer_id = s.offer_id "
+                    f"WHERE {' AND '.join(where)} ORDER BY s.sent_at DESC LIMIT 300", tuple(params))
+        if log.empty:
+            st.caption("No offers match these filters.")
+        else:
+            log["trigger_type"] = log["trigger_type"].map(TRIGGER_LABELS).fillna(log["trigger_type"])
+            st.dataframe(log, hide_index=True, use_container_width=True,
+                         column_config={"message": st.column_config.TextColumn(width="large")})
+            st.caption(f"Newest {len(log)} (max 300).")
+
+
 PAGES = {
     "🏠 Overview": page_overview,
+    "📊 Analytics": page_analytics,
     "🎁 Create offer": page_create_offer,
     "📋 Offers": page_offers,
     "🤖 Assistant": page_assistant,

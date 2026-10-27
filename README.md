@@ -52,6 +52,8 @@ the rec engine's pick and a plain template are used, so the customer still gets 
 `http://localhost:8502` (started by `run_all`). No code needed:
 
 - **🏠 Overview**: today's numbers, what needs attention, one-click actions.
+- **📊 Analytics**: revenue by month and category, top products, the shopping funnel, buyers by
+  city tier and age, the offer funnel (delivered → opened → used) and a searchable offer log.
 - **🎁 Create offer**: three steps (what kind, on what, for whom). Products are found by name, a coupon
   preview and the rule check update as you type, and an offer that breaks a rule can't be saved.
   Big offers wait for a manager's OK.
@@ -94,7 +96,7 @@ powershell -ExecutionPolicy Bypass -File scripts\run_all.ps1   # 5. start everyt
 ```
 
 `run_all` first runs `scripts/preflight.py`: it loads the data, trains the models and prepares the
-demo shoppers if needed, then starts the Offers API (:8001), Main API (:8010), Storefront (:8501),
+demo shoppers if needed, then starts the Offers API (:8001), Main API (:8010),
 Admin dashboard (:8502), the Telegram bot and the 15-minute offer scheduler. `bash scripts/run_all.sh`
 does the same on macOS / Linux / Git Bash. Keys stay in `.env` (never committed); without a Claude
 key the system runs in mock mode, and without a Telegram token it runs without sending.
@@ -112,4 +114,4 @@ Beginners: [docs/BEGINNER_GUIDE.md](docs/BEGINNER_GUIDE.md) · Project rules: [C
 | `llm/` | Claude: offer **chooser**, offer **writer**, shopping chat agent, **admin assistant**, guardrails |
 | `bot/` | Telegram bot, demo shoppers (`personas.py`), send queue, buttons → events |
 | `pipeline/` | triggers, the offer pipeline, scheduler, evaluation, `demo_round` |
-| `api/`, `ui/` | Main API · Storefront (8501) · **Admin dashboard (8502)** |
+| `api/`, `ui/` | Main API · **Admin dashboard (8502)** · optional shopper storefront (`ui/app.py`, not started by `run_all`) |

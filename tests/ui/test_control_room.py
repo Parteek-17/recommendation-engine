@@ -8,7 +8,7 @@ pytest.importorskip("streamlit")
 from streamlit.testing.v1 import AppTest  # noqa: E402
 
 APP = str(Path(__file__).resolve().parents[2] / "ui" / "control_room.py")
-PAGES = ["🏠 Overview", "🎁 Create offer", "📋 Offers", "🤖 Assistant", "📏 Offer rules", "📈 Results",
+PAGES = ["🏠 Overview", "📊 Analytics", "🎁 Create offer", "📋 Offers", "🤖 Assistant", "📏 Offer rules", "📈 Results",
          "🧪 Demo testers"]
 
 
